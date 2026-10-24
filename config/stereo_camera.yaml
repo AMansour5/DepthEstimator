@@ -1,0 +1,4 @@
+camera_index: /dev/video2
+combined_width: 3840
+combined_height: 1080
+preview_width: 640

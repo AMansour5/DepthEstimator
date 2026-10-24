@@ -1,0 +1,5 @@
+model_path: "src/models/yolov8n.pt"
+conf_threshold: 0.5
+classes: null              # e.g. [0, 39, 41] = person, bottle, cup; None = all COCO classes
+device: null               # None = ultralytics default (CUDA if available, else CPU)
+yolo_imgsz: 640
