@@ -1,0 +1,11 @@
+calibration_path: "src/matrices/stereo_calib.npz"
+matcher_params:
+  minDisparity: 0
+  blockSize: 9
+  numDisparities: 320
+  disp12MaxDiff: 5
+  uniquenessRatio: 10
+  speckleWindowSize: 100
+  speckleRange: 2
+  preFilterCap: 31
+  mode: "SGBM_3WAY"   # one of: SGBM, HH, SGBM_3WAY, HH4

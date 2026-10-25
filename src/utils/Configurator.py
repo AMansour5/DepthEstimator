@@ -4,6 +4,7 @@ import pathlib
 class Configurator():
     STEREO_CAMERA = "stereo_camera"
     OBJECT_DETECTOR = "object_detector"
+    STEREO_PROCESSOR = "stereo_processor"
     
     def __init__(self):
         self.__configFile = ''
@@ -29,7 +30,8 @@ class Configurator():
         config_dir = self.__getConfigDir()
         supported_types = (
             Configurator.STEREO_CAMERA,
-            Configurator.OBJECT_DETECTOR
+            Configurator.OBJECT_DETECTOR,
+            Configurator.STEREO_PROCESSOR
         )
         if data_type not in supported_types:
             self.__raiseTypeError(data_type)
