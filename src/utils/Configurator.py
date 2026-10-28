@@ -5,6 +5,7 @@ class Configurator():
     STEREO_CAMERA = "stereo_camera"
     OBJECT_DETECTOR = "object_detector"
     STEREO_PROCESSOR = "stereo_processor"
+    DEPTH_ESTIMATOR = "depth_estimator"
     
     def __init__(self):
         self.__configFile = ''
@@ -31,7 +32,8 @@ class Configurator():
         supported_types = (
             Configurator.STEREO_CAMERA,
             Configurator.OBJECT_DETECTOR,
-            Configurator.STEREO_PROCESSOR
+            Configurator.STEREO_PROCESSOR,
+            Configurator.DEPTH_ESTIMATOR
         )
         if data_type not in supported_types:
             self.__raiseTypeError(data_type)

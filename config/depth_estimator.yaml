@@ -1,0 +1,3 @@
+roi_shrink: 0.5
+min_valid_frac: 0.2
+max_rel_spread: 0.15

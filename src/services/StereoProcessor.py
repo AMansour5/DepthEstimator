@@ -11,8 +11,9 @@ class StereoProcessor:
     "HH4": cv2.STEREO_SGBM_MODE_HH4,
     }
 
-    def __init__(self, processor_cfg):
+    def __init__(self, processor_cfg: dict):
         self.calibration_path = processor_cfg["calibration_path"]
+        self.process_scale = processor_cfg["process_scale"]
         self.matcher_params = processor_cfg["matcher_params"]
         self.matcher = None
         self.K1 = None
@@ -115,6 +116,9 @@ class StereoProcessor:
         """True disparity in pixels (float32). SGBM output is fixed-point x16."""
         gray_l = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
         gray_r = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
+        if self.process_scale < 1.0:
+            gray_l = cv2.resize(gray_l, None, fx=self.process_scale, fy=self.process_scale, interpolation=cv2.INTER_LINEAR)
+            gray_r = cv2.resize(gray_r, None, fx=self.process_scale, fy=self.process_scale, interpolation=cv2.INTER_LINEAR)
         raw = self.matcher.compute(gray_l, gray_r)
         return raw.astype(np.float32) / 16.0
 

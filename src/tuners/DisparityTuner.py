@@ -146,9 +146,8 @@ class DisparityTuner:
             current = self.configurator.fetchData(self.configurator.STEREO_PROCESSOR) or {}
             matcher_params = dict(current.get("matcher_params", {}))
             matcher_params.update(params)
-            matcher_params["process_scale"] = round(float(scale), 2)
             # setConfig only merges top-level keys, so pass the full matcher_params block
-            self.configurator.setConfig(self.configurator.STEREO_PROCESSOR, {"matcher_params": matcher_params})
+            self.configurator.setConfig(self.configurator.STEREO_PROCESSOR, {"process_scale": round(float(scale), 2), "matcher_params": matcher_params})
             print("Parameters successfully written.")
         except Exception as e:
             print(f"Error writing parameters: {e}")
