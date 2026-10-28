@@ -77,7 +77,7 @@ class StereoProcessor:
         try:
             if self.Q is None:
                 raise RuntimeError("Q matrix is not computed.")
-            return abs(self.Q[2, 3])
+            return abs(1.0 / float(self.Q[3, 2]))
         except Exception as e:
             raise RuntimeError(f"Failed to get baseline from Q matrix: {e}")
         
@@ -85,7 +85,7 @@ class StereoProcessor:
         try:
             if self.Q is None:
                 raise RuntimeError("Q matrix is not computed.")
-            return abs(1.0 / float(self.Q[3, 2]))
+            return abs(float(self.Q[2, 3]))
         except Exception as e:
             raise RuntimeError(f"Failed to get focal length from Q matrix: {e}")
 

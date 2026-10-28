@@ -31,7 +31,7 @@ class StereoProcessorTest:
         try:
             assert self.stereo_processor is not None
             focal_length = self.stereo_processor.getFocalLength()
-            print(f"Focal length: {focal_length} cm")
+            print(f"Focal length: {focal_length} px")
             assert focal_length is not None
         except Exception as e:
             print(f"Getting focal length failed: {e}")
@@ -40,10 +40,10 @@ class StereoProcessorTest:
         try:
             assert self.stereo_processor is not None
             baseline = self.stereo_processor.getBaseline()
-            print(f"Baseline: {baseline}")
+            print(f"Baseline: {baseline} cm")
             assert baseline is not None
         except Exception as e:
-            print(f"Getting baseline failed: {e} px")
+            print(f"Getting baseline failed: {e}")
 
     def testcomputeDisparity(self):
         try:
