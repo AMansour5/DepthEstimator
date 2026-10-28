@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 
 class ObjectDetector:
-    def __init__(self, detector_cfg):
+    def __init__(self, detector_cfg: dict):
         self.model_path = detector_cfg.get("model_path")
         self.conf_threshold = detector_cfg.get("conf_threshold", 0.5)
         self.classes = detector_cfg.get("classes", None)
