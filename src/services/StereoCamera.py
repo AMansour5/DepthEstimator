@@ -27,6 +27,7 @@ class StereoCamera:
                 self.__capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.combined_width)
                 self.__capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.combined_height)
                 self.__capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                self.__capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 self.__capture.set(cv2.CAP_PROP_FPS, 30)
 
                 actual_w = int(self.__capture.get(cv2.CAP_PROP_FRAME_WIDTH))

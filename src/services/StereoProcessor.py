@@ -63,6 +63,8 @@ class StereoProcessor:
             self.D2 = data["D2"]
             self.R = data["R"]
             self.T = data["T"]
+            self.square_size_mm = float(data["square_size_mm"])
+            self.checkerboard_dims = tuple(int(x) for x in data["checkerboard"])
             self.calib_img_size = tuple(int(x) for x in data["img_size"])
             self.rms_stereo = float(data["rms_stereo"])
         except Exception as e:
@@ -79,6 +81,7 @@ class StereoProcessor:
             raise RuntimeError(f"Failed to compute rectification: {e}")
 
     def getBaseline(self):
+        """Get the baseline (distance between the two camera centers) in millimeters from the Q matrix."""
         try:
             if self.Q is None:
                 raise RuntimeError("Q matrix is not computed.")
@@ -87,6 +90,7 @@ class StereoProcessor:
             raise RuntimeError(f"Failed to get baseline from Q matrix: {e}")
         
     def getFocalLength(self):
+        """Get the focal length in millimeters from the Q matrix."""
         try:
             if self.Q is None:
                 raise RuntimeError("Q matrix is not computed.")

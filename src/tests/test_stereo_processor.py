@@ -32,7 +32,7 @@ def test_get_baseline():
     stereo_processor = StereoProcessor(processor_cfg)
     assert stereo_processor is not None
     baseline = stereo_processor.getBaseline()
-    print(f"Baseline: {baseline} cm")
+    print(f"Baseline: {baseline} mm")
     assert baseline is not None
 
 def test_compute_disparity():
