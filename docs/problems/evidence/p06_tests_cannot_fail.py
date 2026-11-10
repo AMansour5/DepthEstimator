@@ -9,7 +9,7 @@ print("   " + "\n   ".join(out.strip().splitlines()))
 
 print("\nB) ConfiguratorTest with a deliberately WRONG config value")
 from src.utils.Configurator import Configurator
-from src.tests.ConfiguratorTest import TestConfigurator
+from src.tests.test_configurator import TestConfigurator
 Configurator.fetchData = lambda self, t: dict(camera_index="WRONG", combined_width=0,
                                               combined_height=0, preview_width=0)
 try:
