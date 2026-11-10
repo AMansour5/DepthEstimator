@@ -1,5 +1,7 @@
+import sys
 import cv2
 import time
+import traceback
 import numpy as np
 from src.utils.Configurator import Configurator
 from concurrent.futures import ThreadPoolExecutor
@@ -7,7 +9,6 @@ from src.services.StereoCamera import StereoCamera
 from src.services.ObjectDetector import ObjectDetector
 from src.services.DepthEstimator import DepthEstimator
 from src.services.StereoProcessor import StereoProcessor
-
 
 class Orchestrator:
     """Runs the whole pipeline, one frame at a time (fork-join):
@@ -170,5 +171,13 @@ class Orchestrator:
         self.camera.release()
         cv2.destroyAllWindows()
 
+def main():
+    try:
+        Orchestrator().run()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        traceback.print_exc()
+        sys.exit(1)
+
 if __name__ == "__main__":
-    Orchestrator().run()
+    main()

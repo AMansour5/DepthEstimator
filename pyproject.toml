@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "depth-estimator"
+version = "0.1.0"
+description = "Interactive object detection with yolo and depth estimation using stereo cameras"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Ahmed Mansour" }]
+keywords = ["camera calibration", "stereo vision", "opencv", "computer vision", "yolo", "object detection", "disparity tuning"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+license = "MIT"
+license-files = ["LICENSE"]
+
+dependencies = [
+    "opencv-python>=4.12,<5",
+    "numpy>=1.26",
+    "PyYAML>=6.0.1",
+    "zope.interface>=6.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+estimate-depth = "src.services.Orchestrator:main"
+
+[project.urls]
+Homepage = "https://github.com/AMansour5/DepthEstimator"
+
+# The code imports itself as `src.*` (for example `from src.utils.Configurator import ...`),
+# so the package to ship is `src`. The tests are hardware scripts and are left out.
+[tool.setuptools.packages.find]
+include = ["src*"]
+exclude = ["src.tests*"]

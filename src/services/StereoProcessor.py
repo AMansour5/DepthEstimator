@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
 
 class StereoProcessor:
 
@@ -22,7 +23,7 @@ class StereoProcessor:
         self.D2 = None
         self.R = None
         self.T = None
-        self.img_size = None
+        self.calib_img_size = None
         self.rms_stereo = None
         self.map1x = None
         self.map1y = None
@@ -40,6 +41,9 @@ class StereoProcessor:
     def rectifyImages(self, left_img, right_img):
         if left_img is None or right_img is None:
             raise ValueError("Input images cannot be None.")
+        img_size = (left_img.shape[1], left_img.shape[0])
+        if self.calib_img_size != img_size:
+            raise DifferentImageSizeError(f"Input image size {img_size} does not match calibration image size {self.calib_img_size}.")
         try:
             rectified_left = cv2.remap(left_img, self.map1x, self.map1y, cv2.INTER_LINEAR)
             rectified_right = cv2.remap(right_img, self.map2x, self.map2y, cv2.INTER_LINEAR)
@@ -59,7 +63,7 @@ class StereoProcessor:
             self.D2 = data["D2"]
             self.R = data["R"]
             self.T = data["T"]
-            self.img_size = tuple(int(x) for x in data["img_size"])
+            self.calib_img_size = tuple(int(x) for x in data["img_size"])
             self.rms_stereo = float(data["rms_stereo"])
         except Exception as e:
             raise RuntimeError(f"Failed to load calibration file: {e}")
@@ -67,10 +71,10 @@ class StereoProcessor:
     def __computeRectification(self):
         try:
             R1, R2, P1, P2, self.Q, roi1, roi2 = cv2.stereoRectify(
-                self.K1, self.D1, self.K2, self.D2, self.img_size, self.R, self.T, flags=cv2.CALIB_ZERO_DISPARITY, alpha=0
+                self.K1, self.D1, self.K2, self.D2, self.calib_img_size, self.R, self.T, flags=cv2.CALIB_ZERO_DISPARITY, alpha=0
             )
-            self.map1x, self.map1y = cv2.initUndistortRectifyMap(self.K1, self.D1, R1, P1, self.img_size, cv2.CV_32FC1)
-            self.map2x, self.map2y = cv2.initUndistortRectifyMap(self.K2, self.D2, R2, P2, self.img_size, cv2.CV_32FC1)
+            self.map1x, self.map1y = cv2.initUndistortRectifyMap(self.K1, self.D1, R1, P1, self.calib_img_size, cv2.CV_32FC1)
+            self.map2x, self.map2y = cv2.initUndistortRectifyMap(self.K2, self.D2, R2, P2, self.calib_img_size, cv2.CV_32FC1)
         except Exception as e:
             raise RuntimeError(f"Failed to compute rectification: {e}")
 

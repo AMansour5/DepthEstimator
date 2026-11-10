@@ -46,11 +46,11 @@ class Configurator():
                 data = yaml.safe_load(file)
                 return data
         except FileNotFoundError:
-            print(f"Error: The file '{self.__configFile}' was not found.")
+            raise FileNotFoundError(f"Error: The file '{self.__configFile}' was not found.")
         except yaml.YAMLError:
-            print("Error: Failed to parse the YAML file.")
+            raise RuntimeError("Error: Failed to parse the YAML file.")
         except TypeError as e:
-            print(e)
+            raise TypeError(f"Error: {e}")
 
     def setConfig(self, data_type, new_data):
         """
@@ -81,8 +81,8 @@ class Configurator():
             print(f"Configuration for '{data_type}' updated successfully.")
 
         except FileNotFoundError:
-            print(f"Error: The directory for '{self.__configFile}' was not found.")
+            raise FileNotFoundError(f"Error: The directory for '{self.__configFile}' was not found.")
         except yaml.YAMLError as e:
-            print(f"Error: Failed to write YAML data. Details: {e}")
+            raise RuntimeError(f"Error: Failed to write YAML data. Details: {e}")
         except TypeError as e:
-            print(e)
+            raise TypeError(f"Error: {e}")
