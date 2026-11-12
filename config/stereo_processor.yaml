@@ -1,5 +1,4 @@
 calibration_path: src/matrices/stereo_calib.npz
-process_scale: 0.5
 matcher_params:
   blockSize: 9
   disp12MaxDiff: 5
@@ -10,3 +9,4 @@ matcher_params:
   speckleRange: 2
   speckleWindowSize: 100
   uniquenessRatio: 10
+process_scale: 0.5

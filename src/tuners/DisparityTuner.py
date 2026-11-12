@@ -1,12 +1,13 @@
 import os
+import cv2
 import json
 import math
 import time
-import cv2
 import numpy as np
 from src.utils.Configurator import Configurator
-from src.services.StereoProcessor import StereoProcessor
 from src.services.StereoCamera import StereoCamera
+from src.services.StereoProcessor import StereoProcessor
+from src.utils.DisparityVisualizer import DisparityVisualizer
 
 class DisparityTuner:
     # Nearest distance (mm) depth is needed at; only used to hint the numDisparities required.
@@ -55,40 +56,8 @@ class DisparityTuner:
             preFilterCap=max(1, cv2.getTrackbarPos("preFilterCap", self.TRACKBAR_WINDOW)),
         )
 
-    def colorizeDisparity(self, disparity, num_disp):
-        valid = disparity > 0
-        vis = np.zeros_like(disparity, dtype=np.uint8)
-        if np.any(valid):
-            vis[valid] = np.clip(disparity[valid] * 255.0 / num_disp, 0, 255).astype(np.uint8)
-        colored = cv2.applyColorMap(vis, cv2.COLORMAP_TURBO)
-        colored[~valid] = (0, 0, 0)
-        return colored
-
     def __readProcessScale(self):
         return max(0.2, cv2.getTrackbarPos("process scale x10", self.TRACKBAR_WINDOW) / 10.0)
-
-    def __buildMatcher(self, params):
-        base = self.stereo_processor.matcher_params
-        block_size = params["blockSize"]
-        mode = StereoProcessor._SGBM_MODES[base.get("mode", "SGBM_3WAY")]
-        return cv2.StereoSGBM_create(
-            minDisparity=params["minDisparity"],
-            numDisparities=params["numDisparities"],
-            blockSize=block_size,
-            P1=8 * block_size ** 2,
-            P2=32 * block_size ** 2,
-            disp12MaxDiff=params["disp12MaxDiff"],
-            uniquenessRatio=params["uniquenessRatio"],
-            speckleWindowSize=params["speckleWindowSize"],
-            speckleRange=params["speckleRange"],
-            preFilterCap=params["preFilterCap"],
-            mode=mode,
-        )
-
-    def __computeDisparity(self, gray_l, gray_r, params):
-        """True disparity in pixels (float32); SGBM output is fixed-point x16."""
-        raw = self.__buildMatcher(params).compute(gray_l, gray_r)
-        return raw.astype(np.float32) / 16.0
 
     def __measureAt(self, u, v):
         """Depth at normalized left-image position (u, v): Z = f*B/d, using the median of a 5x5 patch."""
@@ -122,11 +91,6 @@ class DisparityTuner:
         self.__probe["click"] = (u, v)
         print(self.__measureAt(u, v))
 
-    @staticmethod
-    def __drawText(img, text, org, scale=0.6):
-        cv2.putText(img, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 4)
-        cv2.putText(img, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), 2)
-
     def __saveSnapshot(self, rect_l, rect_r, colored, params, scale, full_res_equiv):
         os.makedirs(self.results_dir, exist_ok=True)
         ts = time.strftime("%Y%m%d_%H%M%S")
@@ -151,7 +115,6 @@ class DisparityTuner:
             print("Parameters successfully written.")
         except Exception as e:
             print(f"Error writing parameters: {e}")
-
 
     def tuneDisparity(self):
         """Live SGBM tuning. Click a panel to measure depth, 's' saves params + snapshot, 'q' quits."""
@@ -182,22 +145,17 @@ class DisparityTuner:
                 gray_r_full = cv2.cvtColor(rect_r, cv2.COLOR_BGR2GRAY)
 
                 scale = self.__readProcessScale()
-                if scale < 0.999:
-                    gray_l = cv2.resize(gray_l_full, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-                    gray_r = cv2.resize(gray_r_full, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-                else:
-                    gray_l, gray_r = gray_l_full, gray_r_full
-
-                max_num_disp = max(16, ((gray_l.shape[1] - 32) // 16) * 16)
+                scaled_width = gray_l_full.shape[1] if scale >= 0.999 else round(gray_l_full.shape[1] * scale)
+                max_num_disp = max(16, ((scaled_width - 32) // 16) * 16)
                 params = self.__readParams(max_num_disp)
 
                 t0 = time.time()
-                disparity = self.__computeDisparity(gray_l, gray_r, params)
+                disparity = self.stereo_processor.computeDisparity(rect_l, rect_r, {**params, "process_scale": scale})
                 dt = time.time() - t0
                 inst_fps = 1.0 / dt if dt > 0 else 0.0
                 fps_smoothed = 0.9 * fps_smoothed + 0.1 * inst_fps if fps_smoothed > 0 else inst_fps
 
-                colored = self.colorizeDisparity(disparity, params["numDisparities"])
+                colored = DisparityVisualizer.colorizeDisparity(disparity, params["numDisparities"])
 
                 top = cv2.hconcat([rect_l, rect_r])
                 top_small = cv2.resize(top, (960, int(960 * top.shape[0] / top.shape[1])))
@@ -213,7 +171,7 @@ class DisparityTuner:
                     for ox, oy in ((0, 0), (0, panel_h), (half_w, panel_h)):
                         cv2.drawMarker(display, (int(ox + u * half_w), int(oy + v * panel_h)),
                                        (255, 255, 255), cv2.MARKER_CROSS, 18, 2)
-                    self.__drawText(display, self.__measureAt(u, v), (15, 2 * panel_h - 15))
+                    DisparityVisualizer.drawText(display, self.__measureAt(u, v), (15, 2 * panel_h - 15))
 
                 full_res_equiv = int(params["numDisparities"] / scale)
                 need = math.ceil(f_full * scale * baseline / self.Z_MIN_MM / 16) * 16
@@ -237,4 +195,10 @@ class DisparityTuner:
             self.camera.release()
             cv2.destroyAllWindows()
 
+def main():
+    tuner = DisparityTuner()
+    tuner.tuneDisparity()
+    
+if __name__ == "__main__":
+    main()
     

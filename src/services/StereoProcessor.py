@@ -34,7 +34,7 @@ class StereoProcessor:
         self.__setup()
 
     def __setup(self):
-        self.__buildMatcher()
+        self.matcher = self.buildMatcher()
         self.__loadCalibration()
         self.__computeRectification()
 
@@ -90,7 +90,7 @@ class StereoProcessor:
             raise RuntimeError(f"Failed to get baseline from Q matrix: {e}")
         
     def getFocalLength(self):
-        """Get the focal length in millimeters from the Q matrix."""
+        """Get the focal length in pixels from the Q matrix."""
         try:
             if self.Q is None:
                 raise RuntimeError("Q matrix is not computed.")
@@ -98,36 +98,44 @@ class StereoProcessor:
         except Exception as e:
             raise RuntimeError(f"Failed to get focal length from Q matrix: {e}")
 
-    def __buildMatcher(self):
+    def buildMatcher(self, overrides: dict = None):
+        """Build an SGBM matcher from matcher_params, with optional overrides taking precedence."""
         try:
-            block_size = self.matcher_params["blockSize"]
-            mode_name = self.matcher_params.get("mode", "SGBM_3WAY")
+            params = {**self.matcher_params, **(overrides or {})}
+            block_size = params["blockSize"]
+            mode_name = params.get("mode", "SGBM_3WAY")
             if mode_name not in self._SGBM_MODES:
                 raise ValueError(f"Invalid mode '{mode_name}'. Must be one of {list(self._SGBM_MODES)}.")
-            self.matcher = cv2.StereoSGBM_create(
-                minDisparity=self.matcher_params["minDisparity"],
-                numDisparities=self.matcher_params["numDisparities"],
+            return cv2.StereoSGBM_create(
+                minDisparity=params["minDisparity"],
+                numDisparities=params["numDisparities"],
                 blockSize=block_size,
                 P1=8 * block_size ** 2,
                 P2=32 * block_size ** 2,
-                disp12MaxDiff=self.matcher_params["disp12MaxDiff"],
-                uniquenessRatio=self.matcher_params["uniquenessRatio"],
-                speckleWindowSize=self.matcher_params["speckleWindowSize"],
-                speckleRange=self.matcher_params["speckleRange"],
-                preFilterCap=self.matcher_params["preFilterCap"],
+                disp12MaxDiff=params["disp12MaxDiff"],
+                uniquenessRatio=params["uniquenessRatio"],
+                speckleWindowSize=params["speckleWindowSize"],
+                speckleRange=params["speckleRange"],
+                preFilterCap=params["preFilterCap"],
                 mode=self._SGBM_MODES[mode_name],
             )
         except Exception as e:
             raise RuntimeError(f"Failed to build matcher: {e}")
 
-    def computeDisparity(self, left_img, right_img):
-        """True disparity in pixels (float32). SGBM output is fixed-point x16."""
+    def computeDisparity(self, left_img, right_img, overrides: dict = None):
+        """True disparity in pixels (float32). SGBM output is fixed-point x16.
+
+        overrides may contain matcher params and/or "process_scale" to use instead of the configured ones.
+        """
+        overrides = dict(overrides or {})
+        scale = overrides.pop("process_scale", self.process_scale)
+        matcher = self.buildMatcher(overrides) if overrides else self.matcher
         gray_l = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
         gray_r = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
-        if self.process_scale < 1.0:
-            gray_l = cv2.resize(gray_l, None, fx=self.process_scale, fy=self.process_scale, interpolation=cv2.INTER_LINEAR)
-            gray_r = cv2.resize(gray_r, None, fx=self.process_scale, fy=self.process_scale, interpolation=cv2.INTER_LINEAR)
-        raw = self.matcher.compute(gray_l, gray_r)
+        if scale < 0.999:
+            gray_l = cv2.resize(gray_l, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+            gray_r = cv2.resize(gray_r, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        raw = matcher.compute(gray_l, gray_r)
         return raw.astype(np.float32) / 16.0
 
 

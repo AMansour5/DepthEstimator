@@ -2,13 +2,13 @@ import sys
 import cv2
 import time
 import traceback
-import numpy as np
 from src.utils.Configurator import Configurator
 from concurrent.futures import ThreadPoolExecutor
 from src.services.StereoCamera import StereoCamera
 from src.services.ObjectDetector import ObjectDetector
 from src.services.DepthEstimator import DepthEstimator
 from src.services.StereoProcessor import StereoProcessor
+from src.utils.DisparityVisualizer import DisparityVisualizer
 
 class Orchestrator:
     """Runs the whole pipeline, one frame at a time (fork-join):
@@ -80,23 +80,6 @@ class Orchestrator:
             yolo_ms=yolo_ms, sgbm_ms=sgbm_ms,
         )
 
-    # ------------------------------------------------------------------ #
-    # Drawing (always on copies, after depth is computed)
-    # ------------------------------------------------------------------ #
-    @staticmethod
-    def __drawText(img, text, org, scale=0.5):
-        cv2.putText(img, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 3)
-        cv2.putText(img, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), 1)
-
-    def __colorizeDisparity(self, disparity):
-        valid = disparity > 0
-        vis = np.zeros(disparity.shape, dtype=np.uint8)
-        if np.any(valid):
-            vis[valid] = np.clip(disparity[valid] * 255.0 / self.num_disparities, 0, 255).astype(np.uint8)
-        colored = cv2.applyColorMap(vis, cv2.COLORMAP_TURBO)
-        colored[~valid] = (0, 0, 0)
-        return colored
-
     def __render(self, result, fps):
         """Left: rectified image with boxes + labels. Right: disparity with the
         same boxes, so a missing depth shows up as a hole under the box.
@@ -109,7 +92,7 @@ class Orchestrator:
         ds = self.DISPLAY_WIDTH / rect_left.shape[1]
         left = cv2.resize(rect_left, None, fx=ds, fy=ds)    # resize returns a new array
         disp_vis = cv2.resize(
-            self.__colorizeDisparity(result["disparity"]),
+            DisparityVisualizer.colorizeDisparity(result["disparity"], self.num_disparities),
             (left.shape[1], left.shape[0]), interpolation=cv2.INTER_NEAREST,
         )
 
@@ -126,7 +109,7 @@ class Orchestrator:
                 cv2.rectangle(left, (rx1, ry1), (rx2, ry2), color, 1)   # the region actually sampled
             cv2.rectangle(left, (x1, y1), (x2, y2), color, 2)
             cv2.rectangle(disp_vis, (x1, y1), (x2, y2), color, 2)
-            self.__drawText(left, label, (x1, max(15, y1 - 6)))
+            DisparityVisualizer.drawText(left, label, (x1, max(15, y1 - 6)))
 
         display = cv2.hconcat([left, disp_vis])
         cv2.putText(display,

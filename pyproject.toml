@@ -29,6 +29,8 @@ dev = ["pytest"]
 
 [project.scripts]
 estimate-depth = "src.services.Orchestrator:main"
+tune-disparity = "src.tuners.DisparityTuner:main"
+
 
 [project.urls]
 Homepage = "https://github.com/AMansour5/DepthEstimator"
