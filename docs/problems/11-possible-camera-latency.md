@@ -3,12 +3,12 @@
 | | |
 |---|---|
 | **Severity** | Low |
-| **Status** | **Unverified**: needs your camera. I could not reproduce it here. |
+| **Status** | **Mitigated** in code (reader thread). Whether your backend queues frames is still unverified without your camera. |
 | **Where** | `src/services/StereoCamera.py:27-30` (`__setupCamera`) and `getFrames` |
 
 ## Summary
 
-`StereoCamera` sets width, height, codec and FPS, but not the capture buffer size. Capture backends such as
+`StereoCamera` sets `CAP_PROP_BUFFERSIZE=1`, but backends may ignore it. Capture backends such as
 V4L2 queue several frames. When the processing loop is slower than the camera (YOLO plus SGBM is, at 30 FPS),
 `read()` hands you the *oldest queued* frame, so what you see and measure can be noticeably older than
 "now".
@@ -44,3 +44,11 @@ you are looking at the past.
 - `cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)` (support depends on the backend; check the return value), or
 - run `getFrames` in a small reader thread that always keeps only the latest frame, or
 - call `cap.grab()` a few times before `retrieve()` to discard queued frames.
+
+## Fix applied
+
+`StereoCamera` now checks whether `CAP_PROP_BUFFERSIZE=1` was honored (and warns if not) and runs a daemon
+reader thread that continuously calls `read()` and keeps only the newest frame. `getFrames()` returns that
+newest frame, waiting up to `frame_timeout` seconds (config, default 2.0) for one newer than the last returned,
+so no frame is processed twice. `release()` stops the thread. Covered by fake-capture tests in
+`src/tests/test_stereo_camera.py`.

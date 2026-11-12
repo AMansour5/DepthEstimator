@@ -34,7 +34,7 @@ layout: where it is, why it happens, the evidence, its effects, and a suggested 
 | [P08](08-implicit-units.md) | Units of depth are implicit and inconsistent (mm vs cm) | Medium | Source-read |
 | [P09](09-configurator-error-handling-and-rewrites.md) | `Configurator` turns errors into `None` and rewrites YAML files destructively | Low | Reproduced |
 | [P10](10-duplicated-disparity-code.md) | Disparity code is copied in three places (and has already drifted) | Low | Reproduced (no effect today) |
-| [P11](11-possible-camera-latency.md) | Camera frames may be stale because the capture buffer is never limited | Low | Unverified |
+| [P11](11-possible-camera-latency.md) | Camera frames may be stale because the capture buffer is never limited | Low | Mitigated |
 
 **How the problems combine.** P01 creates unmatched pixels, P03 turns them into wrong depths when
 `minDisparity > 0`, and P04/P07/P09 make the resulting failures silent. Fixing P01 and P04 first
