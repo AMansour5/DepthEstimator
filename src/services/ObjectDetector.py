@@ -1,4 +1,6 @@
 from ultralytics import YOLO
+from src.exceptions.DetectionError import DetectionError
+from src.exceptions.YoloModelNotFound import YoloModelNotFound
 
 class ObjectDetector:
     def __init__(self, detector_cfg: dict):
@@ -10,7 +12,7 @@ class ObjectDetector:
         try:
             self.model = YOLO(self.model_path)
         except Exception as e:
-            print(f"Error: Failed to load YOLO model from '{self.model_path}'. Details: {e}")
+            raise YoloModelNotFound(f"Failed to load YOLO model from '{self.model_path}'. Details: {e}")
 
     def detect(self, image):
         """
@@ -36,5 +38,4 @@ class ObjectDetector:
                 for i in range(len(xyxy))
             ]
         except Exception as e:
-            print(f"Error: Failed to perform object detection. Details: {e}")
-            return None
+            raise DetectionError(f"Failed to perform object detection. Details: {e}")
