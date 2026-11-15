@@ -136,7 +136,9 @@ class StereoProcessor:
             gray_l = cv2.resize(gray_l, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
             gray_r = cv2.resize(gray_r, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
         raw = matcher.compute(gray_l, gray_r)
-        return raw.astype(np.float32) / 16.0
+        disparity = raw.astype(np.float32) / 16.0
+        disparity[disparity < self.matcher_params["minDisparity"]] = -1.0   # SGBM's 'no match' is minDisparity - 1
+        return disparity
 
 
 
