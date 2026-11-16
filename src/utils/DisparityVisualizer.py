@@ -17,3 +17,23 @@ class DisparityVisualizer:
         colored = cv2.applyColorMap(vis, cv2.COLORMAP_TURBO)
         colored[~valid] = (0, 0, 0)
         return colored
+
+    @staticmethod
+    def highlightLeftInvalidBand(colored, disparity):
+        """Tint the contiguous invalid strip at the map's left edge."""
+        valid_fraction = np.mean(disparity > 0, axis=0)
+        valid_columns = np.flatnonzero(valid_fraction > 0.5)
+        if valid_columns.size == 0:
+            return colored
+
+        band_width = int(valid_columns[0])
+        if band_width == 0:
+            return colored
+
+        highlighted = colored.copy()
+        invalid = disparity[:, :band_width] <= 0
+        band = highlighted[:, :band_width]
+        band[invalid] = (0, 0, 128)
+        if band_width < highlighted.shape[1]:
+            cv2.line(highlighted, (band_width, 0), (band_width, highlighted.shape[0] - 1), (0, 0, 255), 1)
+        return highlighted

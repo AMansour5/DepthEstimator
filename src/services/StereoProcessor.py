@@ -135,10 +135,13 @@ class StereoProcessor:
         if scale < 0.999:
             gray_l = cv2.resize(gray_l, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
             gray_r = cv2.resize(gray_r, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-        raw = matcher.compute(gray_l, gray_r)
+        params = {**self.matcher_params, **overrides}
+        pad = params["numDisparities"]
+        gray_l = cv2.copyMakeBorder(gray_l, 0, 0, pad, 0, cv2.BORDER_REPLICATE)
+        gray_r = cv2.copyMakeBorder(gray_r, 0, 0, pad, 0, cv2.BORDER_REPLICATE)
+        raw = matcher.compute(gray_l, gray_r)[:, pad:]
         disparity = raw.astype(np.float32) / 16.0
         disparity[disparity < self.matcher_params["minDisparity"]] = -1.0   # SGBM's 'no match' is minDisparity - 1
         return disparity
-
 
 

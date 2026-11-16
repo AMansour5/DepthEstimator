@@ -6,6 +6,7 @@ Part C: does padding the images on the left before SGBM (then cropping) remove t
 """
 from common import *
 from src.services.DepthEstimator import DepthEstimator
+from src.services.StereoProcessor import StereoProcessor
 
 cfg = load_stereo_processor_cfg()
 mp = cfg["matcher_params"]
@@ -35,9 +36,13 @@ for n in (nd, 128):
     print(f" numDisparities={n}")
     report(disparity(build_matcher(mp, numDisparities=n), left, right))
 
-print(f"\nC) numDisparities={nd}, both images padded on the left by {nd} columns, result cropped")
-lp = cv2.copyMakeBorder(left, 0, 0, nd, 0, cv2.BORDER_REPLICATE)
-rp = cv2.copyMakeBorder(right, 0, 0, nd, 0, cv2.BORDER_REPLICATE)
-disp = disparity(build_matcher(mp), lp, rp)[:, nd:]
+print(f"\nC) numDisparities={nd}, call StereoProcessor.computeDisparity with padding enabled")
+processor = StereoProcessor.__new__(StereoProcessor)
+processor.process_scale = 1.0
+processor.matcher_params = mp
+processor.matcher = processor.buildMatcher()
+left_bgr = cv2.cvtColor(left, cv2.COLOR_GRAY2BGR)
+right_bgr = cv2.cvtColor(right, cv2.COLOR_GRAY2BGR)
+disp = processor.computeDisparity(left_bgr, right_bgr)
 print(f"   first valid column = {int(np.argmax((disp > 0).mean(axis=0) > 0.5))}")
 report(disp)

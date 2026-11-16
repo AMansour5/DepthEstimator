@@ -156,6 +156,7 @@ class DisparityTuner:
                 fps_smoothed = 0.9 * fps_smoothed + 0.1 * inst_fps if fps_smoothed > 0 else inst_fps
 
                 colored = DisparityVisualizer.colorizeDisparity(disparity, params["numDisparities"])
+                colored = DisparityVisualizer.highlightLeftInvalidBand(colored, disparity)
 
                 top = cv2.hconcat([rect_l, rect_r])
                 top_small = cv2.resize(top, (960, int(960 * top.shape[0] / top.shape[1])))

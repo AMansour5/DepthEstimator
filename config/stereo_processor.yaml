@@ -4,7 +4,7 @@ matcher_params:
   disp12MaxDiff: 5
   minDisparity: 0
   mode: SGBM_3WAY
-  numDisparities: 320
+  numDisparities: 272
   preFilterCap: 31
   speckleRange: 2
   speckleWindowSize: 100

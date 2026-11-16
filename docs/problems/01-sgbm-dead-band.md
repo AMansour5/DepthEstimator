@@ -3,15 +3,19 @@
 | | |
 |---|---|
 | **Severity** | High |
-| **Status** | Reproduced (`evidence/p01_dead_band.py`) |
-| **Where** | `config/stereo_processor.yaml:8` (`numDisparities: 320`) and `:2` (`process_scale: 0.5`); `src/services/StereoProcessor.py:115-123` (`computeDisparity`) |
+| **Status** | Fixed; original issue reproduced in `evidence/p01_dead_band.py` |
+| **Where** | `config/stereo_processor.yaml:8` (`numDisparities: 320`) and `:2` (`process_scale: 0.5`); `src/services/StereoProcessor.py` (`computeDisparity`) |
 
 ## Summary
 
-OpenCV's SGBM leaves the leftmost `numDisparities` columns of the disparity map invalid. The
-disparity map is computed at `process_scale` (960 px wide for a 1920 px frame at 0.5), so with the
-current config the **left 320 of 960 columns (33% of the image) never produce a depth**, whatever is
-standing there.
+Without padding, OpenCV's SGBM leaves the leftmost `numDisparities` columns of the disparity map
+invalid. At `process_scale` 0.5, the old configuration therefore made the left 320 of 960 columns
+(33% of the image) unmeasurable.
+
+`StereoProcessor.computeDisparity` now pads both scaled grayscale images on the left by
+`numDisparities`, computes SGBM, and crops the padding from the result. The output remains aligned
+to the original left image and retains its original dimensions. The runtime disparity panel and
+`DisparityTuner` tint the contiguous invalid strip at the map's left edge so any residual is visible.
 
 ## Why it happens
 
@@ -56,26 +60,22 @@ numDisparities=128
 - Together with [P03](03-invalid-disparity-assumes-min-disparity-zero.md), the invalid pixels in this band
   can become a confidently wrong depth when `minDisparity > 0`.
 
-## Suggested fixes
+## Implemented fix
 
-1. **Use only the range you need.** `DisparityTuner` already prints
-   `numDisparities >= N` for your `Z_MIN_MM`. Check that 320 is really required: the scene above
-   recovers fully at 128.
-2. **Pad before matching, crop after.** Verified on the synthetic scene (first valid column goes
-   from 320 to 4):
+Padding and cropping preserve the configured close-range search. On the synthetic scene, the first
+valid column moved from 320 to 4, and the object inside the former band recovered its correct depth:
 
-   ```python
-   pad = self.matcher_params["numDisparities"]
-   gray_l = cv2.copyMakeBorder(gray_l, 0, 0, pad, 0, cv2.BORDER_REPLICATE)
-   gray_r = cv2.copyMakeBorder(gray_r, 0, 0, pad, 0, cv2.BORDER_REPLICATE)
-   raw = self.matcher.compute(gray_l, gray_r)[:, pad:]
-   ```
+The trade-off is that SGBM processes images wider by `numDisparities` pixels at the selected
+processing scale, so runtime may increase. If that cost is unacceptable, reduce `numDisparities` to
+the minimum needed for the desired range; this trades close-range coverage for compute time.
 
-   Cost: SGBM works on a wider image. In my sandbox compute time went from about 189 ms to 299 ms
-   (single noisy measurement; measure on your own machine). Verified with `minDisparity: 0` only.
-3. Whichever you choose, **draw the unmeasurable band** on the disparity panel so users can see it.
+The edge highlight uses the first column with more than 50% valid disparities as the boundary. If
+there is no such column, no edge band is inferred. Other invalid pixels (for example, textureless or
+occluded areas) are not classified as part of this left-edge band.
 
 ## How to verify a fix
 
-Re-run `evidence/p01_dead_band.py` (part A should report a first valid column near 0), and watch
-the black band on the left of the disparity panel in `DisparityTuner` shrink.
+Run `python3 docs/problems/evidence/p01_dead_band.py` (part C should report a first valid column near
+0 and recover both objects), and run `pytest -q src/tests/test_stereo_dead_band.py`. In the runtime
+disparity view and `DisparityTuner`, the highlighted left-edge strip should shrink to the residual
+invalid columns.

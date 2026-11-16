@@ -91,8 +91,10 @@ class Orchestrator:
         rect_left = result["rect_left"]
         ds = self.DISPLAY_WIDTH / rect_left.shape[1]
         left = cv2.resize(rect_left, None, fx=ds, fy=ds)    # resize returns a new array
+        colored_disparity = DisparityVisualizer.colorizeDisparity(result["disparity"], self.num_disparities)
+        colored_disparity = DisparityVisualizer.highlightLeftInvalidBand(colored_disparity, result["disparity"])
         disp_vis = cv2.resize(
-            DisparityVisualizer.colorizeDisparity(result["disparity"], self.num_disparities),
+            colored_disparity,
             (left.shape[1], left.shape[0]), interpolation=cv2.INTER_NEAREST,
         )
 
