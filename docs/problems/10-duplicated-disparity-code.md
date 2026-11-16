@@ -1,20 +1,34 @@
-# P10: Disparity code is copied in three places (and has already drifted)
+# P10: Disparity code was copied in three places
 
 | | |
 |---|---|
-| **Severity** | Low |
-| **Status** | Reproduced (`evidence/p10_interpolation.py`), **with no measurable effect today** |
-| **Where** | `src/services/StereoProcessor.py:115-123` (downscale with `INTER_LINEAR`); `src/tuners/DisparityTuner.py:70-85` (own matcher), `:58-65` (own colorizer) and `:186-187` (downscale with `INTER_AREA`); `src/services/Orchestrator.py:90-96` (second copy of the colorizer) |
+| **Severity** | Low (before the fix) |
+| **Status** | **Fixed** in `084b056`. Re-checked: `evidence/p10_interpolation.py` part A scans the source and prints `VERDICT FIXED` |
+| **Where** | `src/services/StereoProcessor.py:101-146` (`buildMatcher`, `computeDisparity` with `overrides`); `src/utils/DisparityVisualizer.py:12-18` (`colorizeDisparity`); callers `src/tuners/DisparityTuner.py:153,158` and `src/services/Orchestrator.py:63,94` |
 
-## Summary
+## Resolution
 
-You tune SGBM parameters in `DisparityTuner`, but the tuner has its own copy of the matcher construction and
-image preparation, and the runtime path (`StereoProcessor`) has another. They have already diverged:
-the tuner shrinks images with `INTER_AREA`, the runtime with `INTER_LINEAR`.
+There is one implementation of each piece now:
 
-## Evidence
+- **Matcher and image preparation:** `StereoProcessor.buildMatcher(overrides)` builds the SGBM object and
+  `computeDisparity(left, right, overrides)` does grey conversion, downscale (`INTER_AREA`), padding, matching and the
+  sentinel clamp. `DisparityTuner` calls it with its slider values (`{**params, "process_scale": scale}`) instead of owning a
+  copy, and the Orchestrator calls it with no overrides.
+- **Colouring:** `DisparityVisualizer.colorizeDisparity` (plus `drawText` and `highlightLeftInvalidBand`) is used by both views.
 
-Same images, downscaled both ways, then identical SGBM parameters:
+The script confirms it from the source: the tuner has no `StereoSGBM_create`, no colourizer of its own, the Orchestrator has no
+colourizer, and `StereoProcessor` downscales only with `INTER_AREA`.
+
+A good illustration of why it mattered: the [P01](01-sgbm-dead-band.md) padding fix landed once and both the tuner and the runtime got
+it. The same sharing is also why the override bug in [P03](03-invalid-disparity-assumes-min-disparity-zero.md) sits in one
+place and is fixed in one place.
+
+## Original finding (kept for context)
+
+The tuner shrank images with `INTER_AREA`, the runtime with `INTER_LINEAR`. At the configured `process_scale: 0.5` the two give
+**identical** images (averaging 2x2 blocks is what bilinear sampling does at exactly half size); at other scales they differ
+slightly, but on the clean synthetic pair the disparity results did not (part B of the script, still reproducible as a historical
+check):
 
 ```
 scale | mean |pixel diff| | median disp AREA  LINEAR | valid% AREA  LINEAR
@@ -24,23 +38,15 @@ scale | mean |pixel diff| | median disp AREA  LINEAR | valid% AREA  LINEAR
   0.7 |              0.84 |            56.00   56.00 |        92.8    92.8
 ```
 
-At your configured scale (0.5) the two methods give **identical** images, because averaging 2x2 blocks is what bilinear
-sampling does at exactly half size. At other scales the images differ slightly, but on this synthetic
-(clean, uniform texture) pair the disparity results did not. Noisy or finely textured real images may behave
-differently; I did not test that.
+Noisy or finely textured real images may behave differently; this was not tested. There was no measurable effect then, so
+the fix was preventive.
 
-> Correction to something I said earlier: I suggested the interpolation difference "may change your SGBM results slightly".
-> At `process_scale: 0.5` it does not.
+## What still differs on purpose
 
-## Effects
+`DisparityTuner.__measureAt` (a 5x5-patch click probe) and the Orchestrator's per-box `DepthEstimator.computeObjectDepth` are two
+different depth readouts: the tuner's is a quick probe, the runtime's uses the central crop, the median and the `reliable`
+flag. Treat the tuner's number as a rough check, not a prediction of what the demo will show for a box.
 
-- **None measurable today.** The risk is future drift: any change to one copy (a new filter, a different
-  `mode`, a tweak to the downscale) makes "what I tuned" differ from "what runs", with no error to tell you.
-- Fixing a bug in one copy ([P01](01-sgbm-dead-band.md), [P03](03-invalid-disparity-assumes-min-disparity-zero.md))
-  means remembering to fix the others.
+## How to verify
 
-## Suggested fix
-
-Give `StereoProcessor.computeDisparity` optional `params`/`scale` overrides (or a `buildMatcher(params)` helper) and
-have the tuner call it. Put `colorizeDisparity` in one shared utility used by both the tuner and the orchestrator,
-and use `INTER_AREA` for downscaling everywhere.
+`python3 docs/problems/evidence/p10_interpolation.py`: part A should list no duplicated code, ending with `VERDICT FIXED`.

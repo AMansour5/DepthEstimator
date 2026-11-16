@@ -8,10 +8,9 @@ them to `config/stereo_processor.yaml`.
 From the repository root:
 
 ```bash
-python -m src.tests.DisparityTunerTest
+python -m src.tuners.DisparityTuner        # or, after pip install -e ., the tune-disparity command
 ```
 
-(`DisparityTuner` has no `__main__` of its own; that test file is the launcher. It catches and prints any exception.)
 At start-up it prints the focal length, the baseline, and the `numDisparities` needed to see objects at
 `Z_MIN_MM = 500` (50 cm; change the class constant for a different nearest distance). That start-up number is for
 **full resolution**; the green on-screen line gives the number for the *current* process scale, which is the one to use.
@@ -19,7 +18,10 @@ At start-up it prints the focal length, the baseline, and the `numDisparities` n
 ## The window
 
 Top row: rectified left | rectified right. Bottom row: grey left | **disparity** (blue/green = far, red = near; black = no
-match). Green text shows the process scale, compute FPS, current `numDisparities` and the value needed for `Z_MIN_MM`.
+match). A dark-red strip with a red edge line along the left of the disparity panel marks an invalid region that touches the
+left edge: it should be narrow, and it does **not** grow with `numDisparities` any more ([P01](problems/01-sgbm-dead-band.md));
+a wide one means that part of the scene has no matches (texture, occlusion). Green text shows the process scale, compute FPS,
+current `numDisparities` and the value needed for `Z_MIN_MM`.
 
 | Control | Effect |
 |---|---|
@@ -32,9 +34,9 @@ match). Green text shows the process scale, compute FPS, current `numDisparities
 
 | Slider | Range / mapping | Notes |
 |---|---|---|
-| `minDisparity` | 0-10 | **Leave at 0** ([P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
+| `minDisparity` | 0-10 | **Leave at 0.** At 2 or more, matcher failures are drawn and probed as real, very distant surfaces while you tune, because the tuner's value is an override that is not clamped ([P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
 | `process scale x10` | 0-10, minimum effective scale 0.2 | Main speed control. 5 = half resolution |
-| `numDisp x16` | value x 16, minimum 16, capped to the image width | Start from the value the overlay says you need |
+| `numDisp x16` | value x 16, minimum 16, capped to the scaled image width minus 32 | Start from the value the overlay says you need |
 | `blockSize idx` | `2*idx + 3`, minimum 3 (3-23, odd) | Matching window |
 | `uniquenessRatio` | 0-30 | |
 | `speckleWindowSize` | 0-200 | |
@@ -48,8 +50,9 @@ match). Green text shows the process scale, compute FPS, current `numDisparities
    ([P02](problems/02-frame-size-vs-calibration.md)).
 2. Choose `process scale` for the frame rate you need. Half resolution doubles the depth error
    ([Depth estimation](depth-estimation.md#3-how-accurate-is-it)).
-3. Set `numDisparities` to **just** what the overlay asks for. Larger values add a wider black band on the left of the
-   disparity panel ([P01](problems/01-sgbm-dead-band.md)).
+3. Set `numDisparities` to **just** what the overlay asks for. A larger value no longer widens a dead band on the left, but it
+   makes every frame slower (the images are padded by that many columns, [P01](problems/01-sgbm-dead-band.md)) and allows more
+   wrong matches.
 4. Put a textured object at your nearest working distance and check that it is filled in, with no holes.
 5. Increase `blockSize` to fill holes (at the cost of blurry edges). Raise `uniquenessRatio` and the speckle settings to
    remove noise (at the cost of more holes).
@@ -59,9 +62,11 @@ match). Green text shows the process scale, compute FPS, current `numDisparities
 
 ## Cautions
 
-- `d` rewrites the whole YAML file: **comments are dropped and keys are re-sorted**
+- `d` rewrites the whole YAML file: **comments are dropped and keys are re-sorted**, and a failed write leaves the file empty
   ([P09](problems/09-configurator-error-handling-and-rewrites.md)). Commit the file first so you can diff.
-- The tuner has its own copy of the matcher code. Today it behaves the same as the runtime at `process_scale: 0.5`, but
-  it can drift ([P10](problems/10-duplicated-disparity-code.md)), so re-check the result in the orchestrator.
-- The tuner calls `StereoProcessor(None)` if the YAML can't be loaded, which fails with a confusing `TypeError`
-  ([P09](problems/09-configurator-error-handling-and-rewrites.md)).
+- The tuner calls `StereoProcessor.computeDisparity` with your slider values as overrides, so it matches the runtime
+  (padding, `INTER_AREA` downscale and all, [P10](problems/10-duplicated-disparity-code.md)). The one exception is
+  `minDisparity` above (P03). The click probe is a quick 5x5-patch median, not the per-box estimate the demo shows; check the
+  final result in the orchestrator.
+- The tuner builds its `StereoProcessor` from `stereo_processor.yaml` and now raises a clear error if that file is missing or
+  malformed ([P09](problems/09-configurator-error-handling-and-rewrites.md)).

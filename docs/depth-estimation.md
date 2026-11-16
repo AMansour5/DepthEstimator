@@ -84,18 +84,29 @@ needed numDisparities for a given Z_min = ceil(f_full * s * B / Z_min / 16) * 16
 
 *Illustrative* (`s = 0.5`):
 
-| `numDisparities` | `Z_min` | Width of the unmeasurable left band |
+| `numDisparities` | `Z_min` | Padded image width fed to SGBM (960 px map) |
 |---|---|---|
-| 64 | about 480 mm | 7% of the frame |
-| 128 | about 240 mm | 13% |
-| 192 | about 160 mm | 20% |
-| 320 | about 94 mm | **33%** |
+| 64 | about 470 mm | 1024 px |
+| 128 | about 230 mm | 1088 px |
+| 192 | about 160 mm | 1152 px |
+| 272 | about 110 mm | 1232 px |
+| 320 | about 94 mm | 1280 px |
 
-The last column is the catch: **every extra unit of `numDisparities` also widens the strip on the left that can never
-produce a depth** ([P01](problems/01-sgbm-dead-band.md)). Choose the smallest value that covers your nearest object.
+Earlier versions lost the leftmost `numDisparities` columns of the map (a third of the frame at 320), so every extra unit of range
+also widened a strip that could never produce a depth. That is fixed ([P01](problems/01-sgbm-dead-band.md)): `computeDisparity`
+pads the images on the left by `numDisparities` and crops the result. The price is the last column: SGBM now processes
+`width + numDisparities` columns, so the cost of the range is paid in compute time instead (about 46 ms to 56 ms on a
+1920x1080 pair at 272 and scale 0.5; measure on your machine). Choose the smallest value that covers your nearest object.
 
-An object nearer than `Z_min` is not silently dropped: in my tests its region came back mostly invalid with wrong
-numbers, and was usually (not always) flagged orange. Treat anything closer than `Z_min` as unmeasurable.
+What padding cannot do: a point with disparity `d` is outside the right camera's view for `x < d`, so the leftmost `d` columns
+hold **extrapolated, not measured** values (in the synthetic test 37-61% of them carry a value, and 4-6% of those are off by
+more than 2 px). Treat a depth taken near the left edge of the frame as the least certain one.
+
+An object nearer than `Z_min` is not measured: in a synthetic test with `numDisparities: 272` (`Z_min` about 110 mm at the
+illustrative `f` and `B`), an object at disparity 272 was still measured (111 mm), while objects at disparity 300 and 340 came
+back 93-94% invalid and their boxes returned `None`; the few valid pixels sat at the object's edges and held the background's
+disparity. Real, slanted or poorly textured objects can behave differently (a partly matched region can yield a wrong number),
+so treat anything closer than `Z_min` as unmeasurable.
 
 **Farthest distance** is limited by precision, not by a hard cut-off: see the table above.
 
@@ -107,9 +118,10 @@ numbers, and was usually (not always) flagged orange. Treat anything closer than
   `rel_spread` is large even when the measurement is fine.
 - **Textureless surfaces** (blank walls, uniform floors) give no matches and therefore holes; so do reflective or
   repetitive surfaces.
-- **Occlusion.** A point visible to the left camera but hidden from the right has no match. Objects near the left edge
-  suffer most ([P01](problems/01-sgbm-dead-band.md)).
-- **Units.** Depth is in the unit of the calibration square size, assumed millimetres
-  ([P08](problems/08-implicit-units.md)).
+- **Occlusion.** A point visible to the left camera but hidden from the right has no match, and a near object hides a strip
+  of background just to its left in the left image. The disparity panel tints an invalid strip that touches the left edge
+  ([P01](problems/01-sgbm-dead-band.md)); occlusions elsewhere are simply black.
+- **Units.** Depth is in the unit of the calibration square size, assumed millimetres; the `square_size_mm` stored in the
+  calibration is not applied ([P08](problems/08-implicit-units.md)).
 - **Calibration quality bounds everything.** The reported `rms_stereo` of the calibration is a good first check; a
   poor calibration produces systematic distance errors that no tuning can remove.

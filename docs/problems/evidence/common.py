@@ -6,7 +6,9 @@ read the real values from config/*.yaml, so they exercise your actual code and
 your actual settings.
 
 Run any script from anywhere:  python docs/problems/evidence/pXX_name.py
-Needs: numpy, opencv-python, pyyaml  (p04 also needs zope.interface, p06 needs pytest)
+Needs: numpy, opencv-python, pyyaml, zope.interface  (p06 also needs pytest, p12 needs Python 3.11+ for tomllib)
+
+Every script ends with a line starting 'VERDICT' (FIXED / PARTLY FIXED / STILL PRESENT) for the problem it covers.
 """
 import sys
 from pathlib import Path
@@ -29,7 +31,7 @@ def load_stereo_processor_cfg():
 
 
 def build_matcher(matcher_params, **override):
-    """Same SGBM construction as StereoProcessor.__buildMatcher (repo code)."""
+    """Same SGBM construction as StereoProcessor.buildMatcher (repo code)."""
     p = {**matcher_params, **override}
     b = p["blockSize"]
     return cv2.StereoSGBM_create(
@@ -63,8 +65,34 @@ def make_scene(objects=(), bg_d=10, seed=5):
     return left, right
 
 
-def synthetic_calibration(path, img_size=(1920, 1080), f=1000.0, baseline=60.0):
-    """Write a calibration .npz in the format StereoProcessor expects (illustrative numbers)."""
+def synthetic_calibration(path, img_size=(1920, 1080), f=1000.0, baseline=60.0,
+                          square_size_mm=30.0, checkerboard=(8, 5)):
+    """Write a calibration .npz in the format StereoProcessor expects (illustrative numbers).
+
+    square_size_mm and checkerboard are REQUIRED by StereoProcessor.__loadCalibration even though
+    nothing uses them yet (see P08).
+    """
     K = np.array([[f, 0, img_size[0] / 2], [0, f, img_size[1] / 2], [0, 0, 1]])
     np.savez(path, K1=K, D1=np.zeros(5), K2=K, D2=np.zeros(5), R=np.eye(3),
-             T=np.array([[-baseline], [0], [0]]), img_size=np.array(img_size), rms_stereo=0.3)
+             T=np.array([[-baseline], [0], [0]]), img_size=np.array(img_size), rms_stereo=0.3,
+             square_size_mm=square_size_mm, checkerboard=np.array(checkerboard))
+
+
+def bgr(gray):
+    """Grey -> 3-channel, because StereoProcessor.computeDisparity takes BGR input."""
+    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+
+def make_processor(matcher_params, scale=1.0):
+    """A StereoProcessor with real matcher/disparity code but no calibration file (disparity only)."""
+    from src.services.StereoProcessor import StereoProcessor
+    p = StereoProcessor.__new__(StereoProcessor)
+    p.process_scale = scale
+    p.matcher_params = dict(matcher_params)
+    p.matcher = p.buildMatcher()
+    return p
+
+
+def verdict(status, text):
+    """The last line of every script: FIXED / PARTLY FIXED / STILL PRESENT."""
+    print(f"\nVERDICT {status}: {text}")

@@ -1,61 +1,65 @@
-# P03: With `minDisparity ≥ 1`, "no match" pixels become a confident wrong depth
+# P03: "No match" pixels become a confident wrong depth when `minDisparity` is not 0
 
 | | |
 |---|---|
-| **Severity** | High (latent: the default config uses `minDisparity: 0`) |
-| **Status** | Reproduced (`evidence/p03_min_disparity.py`) |
-| **Where** | `src/services/DepthEstimator.py:72` (`valid = roi[roi > 0]`); `src/services/Orchestrator.py:90-96`; `src/tuners/DisparityTuner.py:58-65` and the 5x5 probe in `__measureAt`; the tuner's `minDisparity` slider at `:31` (range 0-10) |
+| **Severity** | High for the tuner path, latent for the configured path (the config uses `minDisparity: 0`) |
+| **Status** | **Partly fixed, reopened**. The configured value is handled; the `overrides` path used by `DisparityTuner` is not. `evidence/p03_min_disparity.py` prints `VERDICT PARTLY FIXED` |
+| **Where** | `src/services/StereoProcessor.py:144` (the clamp, compares with `self.matcher_params["minDisparity"]`) and `:133` (the override reaches the matcher only); `src/tuners/DisparityTuner.py:32` (slider 0-10), `:51`, `:153` (passes the slider as an override), `:107-117` (`__writeParams` stores it); `src/services/DepthEstimator.py:72` and `src/utils/DisparityVisualizer.py:13` (`> 0` means valid) |
 
 ## Summary
 
-SGBM writes `minDisparity - 1` into pixels it could not match. With `minDisparity = 0` that is
-`-1`, so the codebase's "valid means `> 0`" test works. With any `minDisparity ≥ 1` the sentinel is
-`0, 1, 2, ...`, a small *positive* number that the code treats as a real measurement of a very distant
-surface.
+SGBM writes `minDisparity - 1` into pixels it could not match. With `minDisparity = 0` that is `-1`, and with `minDisparity = 1` it is
+`0`; both fail the codebase's "valid means `> 0`" test, so they are correctly ignored. With `minDisparity >= 2` the sentinel
+(`1`, `2`, ...) is a small **positive** number, which the code reads as a real measurement of a very distant surface.
 
-## Evidence
+## What was fixed (`9483759`)
 
-A flat scene whose true disparity is 40 (correct depth 750 mm), with a box placed in the unmatched
-left band ([P01](01-sgbm-dead-band.md)):
+`computeDisparity` now ends with
 
-```
-minDisparity=0: SGBM writes [-1.] for 'no match'
-   box in unmatched band: None (no depth)
-   box in valid area   : z=750 mm  d=40.0  reliable=True
-minDisparity=3: SGBM writes [2.] for 'no match'
-   box in unmatched band: z=15000 mm  d=2.0  reliable=True      <-- wrong, and flagged reliable
-   box in valid area   : z=750 mm  d=40.0  reliable=True
-minDisparity=8: SGBM writes [7.] for 'no match'
-   box in unmatched band: z=4286 mm  d=7.0  reliable=True       <-- wrong, and flagged reliable
+```python
+disparity[disparity < self.matcher_params["minDisparity"]] = -1.0   # SGBM's 'no match' is minDisparity - 1
 ```
 
-The sentinel region is perfectly uniform, so `valid_frac = 1.0` and the spread is 0, which is
-exactly what the `reliable` heuristic rewards.
+For a `minDisparity` in the config this is correct: part A of the script finds **0** raw sentinel pixels counted as valid for
+`minDisparity` 0, 3 and 8.
 
-## Effects
+## What is still wrong
 
-- Unmatched regions are reported as **valid, reliable, far-away** depths, instead of "no depth".
-- It stays invisible while the config says `minDisparity: 0`. But `DisparityTuner` exposes
-  `minDisparity` (0-10) and its `d` key writes the slider value into `config/stereo_processor.yaml`
-  (`__writeParams`), so one tuning session can switch it on without anyone noticing.
-- The disparity visualisations (`colorizeDisparity` in both the tuner and `Orchestrator`) have the
-  same `> 0` assumption, so the invalid pixels would also be drawn as real, very distant surfaces.
+`computeDisparity(left, right, overrides)` builds the matcher with the overridden `minDisparity` but clamps with the
+**configured** one. `DisparityTuner` calls it that way with its `minDisparity` slider (0-10), so while tuning at slider
+value `m > 1`, SGBM's `m - 1` sentinel stays in the map as a valid-looking disparity (part B, flat scene, true `d = 40`):
+
+```
+override minDisparity=3: raw sentinel pixels counted as valid = 14274   box at the left edge: z=15000 mm  d=2.0  reliable=True
+override minDisparity=8: raw sentinel pixels counted as valid = 14446   box at the left edge: z=4286 mm   d=7.0  reliable=True
+```
+
+Both are wrong (the truth is 750 mm) and both are flagged reliable, because the sentinel region is perfectly uniform
+(`valid_frac = 1.0`, spread 0), exactly what the `reliable` heuristic rewards.
+
+Consequences:
+
+- The tuner's disparity panel and its click probe (`__measureAt`) draw and report the sentinel as a very distant surface, so
+  you tune against a picture that is wrong exactly where matching failed.
+- Pressing `d` writes the slider value into `config/stereo_processor.yaml` (`__writeParams`). From then on the *configured*
+  path is the one used, and it is clamped correctly, so the damage is limited to the tuning session. A tuned
+  `minDisparity > 0` is still unusual: it shifts the whole search window.
 
 ## Suggested fix
 
-Normalise the sentinel **at the source**, so every downstream `> 0` check stays correct.
-Verified with `minDisparity` 0, 3 and 8:
+Use the effective value, not the configured one:
 
 ```python
-# StereoProcessor.computeDisparity
-disp = raw.astype(np.float32) / 16.0
-disp[disp < self.matcher_params["minDisparity"]] = -1.0   # SGBM's 'no match' is minDisparity - 1
-return disp
+params = {**self.matcher_params, **overrides}
+...
+disparity[disparity < params["minDisparity"]] = -1.0
 ```
 
-(`DisparityTuner.__computeDisparity` needs the same line.)
+(the merged `params` already exists in `computeDisparity` for the padding). Add a regression test that calls
+`computeDisparity(..., {"minDisparity": 3})` on a textured pair and asserts that no pixel equals `2.0`: there is none for
+the override path today (`src/tests/test_stereo_dead_band.py` only uses `minDisparity: 0`).
 
-## How to verify a fix
+## How to verify
 
-With the line above, `evidence/p03_min_disparity.py` shows `None` for the unmatched box at every
-`minDisparity`.
+`python3 docs/problems/evidence/p03_min_disparity.py`: part B should show 0 sentinel pixels and `None` for the edge box,
+ending in `VERDICT FIXED`.

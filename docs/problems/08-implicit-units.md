@@ -1,40 +1,55 @@
-# P08: Units of depth are implicit and inconsistent (mm vs cm)
+# P08: The unit of depth is still an assumption (it is now recorded, but never applied)
 
 | | |
 |---|---|
 | **Severity** | Medium |
-| **Status** | Source-read (code reading and arithmetic; needs your calibration to see real numbers) |
-| **Where** | `src/services/StereoProcessor.py:77-92` (`getBaseline`, `getFocalLength`); `src/services/DepthEstimator.py` (result key `z_mm`); `src/services/Orchestrator.py:123` (`z_mm / 1000` shown as metres); `src/tuners/DisparityTuner.py:108` (prints `z_mm / 10` as cm); `src/tests/StereoProcessorTest.py:43` (prints the baseline as "cm") |
+| **Status** | **Partly fixed**. Labels are consistent now; the stored unit is read but ignored (reproduced by `evidence/p13_calibration_schema.py`, part B). The original arithmetic is **source-read** and needs your calibration to see real numbers |
+| **Where** | `src/services/StereoProcessor.py:66` (`square_size_mm` loaded, never used), `:83-90` (`getBaseline`); `src/services/DepthEstimator.py` (result key `z_mm`); `src/services/Orchestrator.py:109` (`z_mm / 1000` shown as metres); `src/tuners/DisparityTuner.py:75-77` (prints `z_mm / 10` as cm) |
 
 ## Summary
 
-The baseline, and therefore every depth, is in **whatever unit was used for the checkerboard square size
-during calibration**. The calibration file doesn't record that unit, and the code assumes millimetres in some
-places and centimetres in others.
+The baseline, and therefore every depth, is in **whatever unit was used for the checkerboard square size during
+calibration**. `getBaseline()` returns `abs(1 / Q[3, 2])`; `Q` comes from `cv2.stereoRectify` using the translation `T`, and `T`
+comes out in the units of the calibration target's square size.
 
-## Why it happens
+## What changed (`db60e9b`)
 
-`getBaseline()` returns `abs(1 / Q[3, 2])`. `Q` comes from `cv2.stereoRectify` using the translation `T`, and `T` comes
-out in the units of the calibration target's square size. The `.npz` schema has no unit field, and nothing in the
-config tells the code which unit was used.
+- The calibration file now carries `square_size_mm` and `checkerboard`, and `StereoProcessor` loads them
+  (`self.square_size_mm`, `self.checkerboard_dims`).
+- The mislabelled "cm" print for the baseline in the test was corrected to mm, and the tuner's output is consistent
+  (`z_mm` in the data, centimetres in the tuner's probe text, metres in the overlay).
 
-## Effects
+## What is still open
 
-If the squares were entered in millimetres, everything is consistent. If they were entered in centimetres
-(or inches), **every depth is wrong by a constant factor with no error**. Illustration (made-up numbers):
+**The recorded unit is not used.** Nothing in `src/` reads `square_size_mm` after loading it, and `getBaseline()` ignores it. Two
+calibrations with identical translation and `square_size_mm` = 30 and 3 return the same baseline:
+
+```
+square_size_mm= 30.0: getBaseline() = 60.0
+square_size_mm=  3.0: getBaseline() = 60.0
+```
+
+So if the squares were entered in centimetres (or inches) in the calibration run, **every depth is still wrong by a constant
+factor with no error**. Illustration (made-up numbers):
 
 | Square size entered | `getBaseline()` | `z_mm` computed | `Orchestrator` shows (`z_mm / 1000`) | Real distance |
 |---|---|---|---|---|
 | 25 (mm) | 60.0 | 750 | 0.75 m | 0.75 m |
 | 2.5 (cm) | 6.0 | 75 | **0.075 m** (10x too small) | 0.75 m |
 
-Also, the output key is named `z_mm` and the tuner prints centimetres, so a reader can't tell which unit the
-number is in, and `StereoProcessorTest` labels the same baseline "cm".
+The new key is a *name*, not a conversion: it says "mm" even when the number stored in it was typed in cm. On the author's
+calibration (`square_size_mm: 30`) `getBaseline()` returns about 136 mm; a value ten times smaller (13.6) would reveal a unit
+mix-up, but only a measurement of a known distance proves the scale.
 
-## Suggested fixes
+## Suggested fix
 
-- Write the unit into the calibration file (for example `square_size_mm`, or a `units` string) and have
-  `StereoProcessor` convert the baseline to millimetres once, so the rest of the code can rely on mm.
-- Fix the mislabelled print in `StereoProcessorTest` and keep one display convention (metres in the
-  overlay, millimetres in data).
-- Document the requirement in [`docs/setup.md`](../setup.md) (done).
+Make the key meaningful. Either (a) have the calibration script store `T` in millimetres and fail if `square_size_mm` is not
+what it used, or (b) validate in `StereoProcessor` that the baseline is plausible for the camera (for example 20-500 mm) and
+raise otherwise. Keep one display convention: metres in the overlay, millimetres in data. Add a test with two calibrations that
+differ only in `square_size_mm`. See also [P13](13-calibration-schema-unused-required-keys.md), which covers the same key from
+the compatibility side.
+
+## How to verify
+
+`python3 docs/problems/evidence/p13_calibration_schema.py`, part B: the baselines should differ (or a bad unit should raise).
+Then hold an object at a measured distance and compare ([`docs/setup.md`](../setup.md), first-run checklist).

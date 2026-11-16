@@ -1,6 +1,12 @@
-"""P02: nothing checks that the frames being rectified have the size the calibration was made for."""
+"""P02: the frame size is checked against the calibration, but only for the LEFT image; the camera only warns.
+
+Part A: StereoProcessor.rectifyImages with the real class and a synthetic 1920x1080 calibration.
+Part B: StereoCamera when the device negotiates another resolution (fake capture, no hardware).
+"""
 import tempfile
 from common import *
+from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
+from src.services.StereoCamera import StereoCamera
 from src.services.StereoProcessor import StereoProcessor
 
 with tempfile.TemporaryDirectory() as tmp:
@@ -9,14 +15,56 @@ with tempfile.TemporaryDirectory() as tmp:
     cfg = load_stereo_processor_cfg()
     cfg["calibration_path"] = calib
     sp = StereoProcessor(cfg)
-    print(f"calibrated for {sp.img_size}\n")
+    print(f"calibrated for {sp.calib_img_size}\n")
+    print("A) rectifyImages(left, right)")
 
     rng = np.random.default_rng(0)
-    cases = {"matches calibration": (1920, 1080),
-             "StereoCamera default size 1280x480 combined -> 640x480 per eye": (640, 480),
-             "camera negotiated 1280x720 combined -> 640x720 per eye": (640, 720)}
-    for label, (w, h) in cases.items():
-        img = (rng.random((h, w, 3)) * 255).astype(np.uint8)
-        rl, rr = sp.rectifyImages(img, img)
-        print(f"{label}\n   input {w}x{h} -> output {rl.shape[1]}x{rl.shape[0]}, "
-              f"no exception, {(rl.sum(axis=2) > 0).mean():.0%} of output pixels have image content")
+    img = lambda w, h: (rng.random((h, w, 3)) * 255).astype(np.uint8)
+    cases = {
+        "both 1920x1080 (matches)": (img(1920, 1080), img(1920, 1080)),
+        "both 640x480 (StereoCamera's default 1280x480 combined)": (img(640, 480), img(640, 480)),
+        "both 640x720 (camera negotiated 1280x720 combined)": (img(640, 720), img(640, 720)),
+        "left 1920x1080, RIGHT 640x480": (img(1920, 1080), img(640, 480)),
+    }
+    outcome = {}
+    for label, (l, r) in cases.items():
+        try:
+            rl, rr = sp.rectifyImages(l, r)
+            outcome[label] = "no error"
+            print(f"   {label:<58} -> no exception, right output {rr.shape[1]}x{rr.shape[0]}, "
+                  f"{(rr.sum(axis=2) > 0).mean():.0%} of it has image content")
+        except DifferentImageSizeError:
+            outcome[label] = "raised"
+            print(f"   {label:<58} -> DifferentImageSizeError")
+
+print("\nB) StereoCamera.open() when the device does not give the requested size")
+
+
+class FakeCapture:
+    """Requested 3840x1080, but reports 1280x720 (a common V4L2 fallback)."""
+    def isOpened(self): return True
+    def set(self, *_): return True
+    def get(self, prop):
+        return {cv2.CAP_PROP_FRAME_WIDTH: 1280, cv2.CAP_PROP_FRAME_HEIGHT: 720}.get(prop, 1)
+    def read(self): return False, None
+    def release(self): pass
+
+
+cv2.VideoCapture = lambda *_a, **_k: FakeCapture()
+cam = StereoCamera({"combined_width": 3840, "combined_height": 1080})
+print("   (console output of open():)")
+cam.open()
+opened = cam.getCapture() is not None
+print(f"   camera still opened after the size mismatch: {opened}")
+cam.release()
+
+right_unchecked = outcome["left 1920x1080, RIGHT 640x480"] == "no error"
+left_checked = outcome["both 640x480 (StereoCamera's default 1280x480 combined)"] == "raised"
+if left_checked and not right_unchecked and not opened:
+    verdict("FIXED", "both images and the camera are checked")
+elif left_checked:
+    verdict("PARTLY FIXED",
+            "a wrong LEFT size now raises DifferentImageSizeError; a wrong RIGHT size still passes unchecked, "
+            "and StereoCamera only prints a warning and keeps running")
+else:
+    verdict("STILL PRESENT", "mismatched frames are still rectified silently")

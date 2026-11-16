@@ -1,53 +1,56 @@
-# P09: `Configurator` turns errors into `None` and rewrites YAML files destructively
+# P09: `Configurator.fetchData` raises now; `setConfig` still destroys comments and can empty a file
 
 | | |
 |---|---|
 | **Severity** | Low |
-| **Status** | Reproduced (`evidence/p09_configurator.py`); the non-atomic write is reasoned from the code, not tested |
-| **Where** | `src/utils/Configurator.py:42-53` (`fetchData`), `:55-85` (`setConfig`, `safe_dump` at `:79`); callers such as `src/tuners/DisparityTuner.py:19` |
+| **Status** | **Partly fixed**. `evidence/p09_configurator.py` prints `VERDICT PARTLY FIXED` |
+| **Where** | `src/utils/Configurator.py:42-53` (`fetchData`), `:55-88` (`setConfig`, `open(..., 'w')` at `:78`, `safe_dump` at `:79`); caller `src/tuners/DisparityTuner.py:107-117` (`__writeParams`, the `d` key) |
 
-## Summary
+## Resolved (`e645de6`)
 
-`fetchData` prints an error and returns `None` instead of raising. Callers that don't check for `None`
-fail later with an unrelated `TypeError`. `setConfig` (used by the tuner's `d` key) re-serialises the entire
-file with `yaml.safe_dump`, which discards comments and re-sorts keys.
-
-## Evidence
+`fetchData` no longer prints and returns `None`. It raises, and callers that don't handle it stop at the real cause:
 
 ```
-A) object_detector.yaml before setConfig(conf_threshold=0.6):
-   | model_path: "src/models/yolov8n.pt"
-   | conf_threshold: 0.5
-   | classes: null              # e.g. [0, 39, 41] = person, bottle, cup; None = all COCO classes
-   | device: CUDA               # None = ultralytics default (CUDA if available, else CPU)
-   after (comments gone, keys re-sorted, quotes dropped):
-   | classes: null
-   | conf_threshold: 0.6
-   | device: CUDA
-   | model_path: src/models/yolov8n.pt
-
-B) errors become None
-   unknown type          -> None
-   malformed yaml        -> None
-   missing file          -> None
+unknown type    -> TypeError
+malformed yaml  -> RuntimeError
+missing file    -> FileNotFoundError
 ```
 
-Passing that `None` onward: `StereoProcessor(None)` fails with
-`TypeError: 'NoneType' object is not subscriptable`, far from the real cause (a bad config file).
-`Orchestrator` guards against it (`__fetch`); `DisparityTuner.__init__` does not.
+That removes the confusing `TypeError: 'NoneType' object is not subscriptable` far away from a bad config file; `Orchestrator.__fetch`
+and `DisparityTuner.__init__` both get the exception directly.
 
-## Effects
+## Still open
 
-- A typo in a YAML file produces a confusing `TypeError` somewhere else.
-- Tuning with the `d` key silently deletes the explanatory comments in whichever file it rewrites (the
-  tuner rewrites `stereo_processor.yaml`; `setConfig` is generic and would do the same to
-  `object_detector.yaml`, which is where your comments currently live).
-- `setConfig` opens the file for writing before serialising, so a crash in between can leave it empty
-  (reasoned from the code; not tested).
+1. **`setConfig` re-serialises the whole file with `yaml.safe_dump`**, dropping comments, quotes and re-sorting the keys. The
+   tuner's `d` key uses it on `stereo_processor.yaml` (which has no comments today), but `setConfig` is generic and would do the
+   same to `object_detector.yaml`, where the explanatory comments live:
+
+   ```
+   before: classes: null              # e.g. [0, 39, 41] = person, bottle, cup; null = all COCO classes
+   after:  classes: null              (comment gone; keys now alphabetical; quotes dropped)
+   ```
+
+2. **The write is not atomic, and this one is now reproduced** (it was only reasoned before). `setConfig` opens the file for
+   writing, truncating it, *then* serialises. When serialisation fails, the original content is gone:
+
+   ```
+   setConfig(..., {"conf_threshold": object()})  -> raised RuntimeError
+   file afterwards: 0 bytes (was 97)  <-- the original content is gone
+   ```
+
+   (A crash or power loss between `open` and the end of `safe_dump` does the same.)
+3. **The parse error loses its detail.** `fetchData` raises `RuntimeError("Error: Failed to parse the YAML file.")` without the
+   line/column from the `yaml.YAMLError`, and without chaining it (`from e`).
 
 ## Suggested fixes
 
-- Raise on failure (`FileNotFoundError`, `yaml.YAMLError`) and let callers decide.
-- Preserve comments with `ruamel.yaml`, or accept losing them and move the explanations into
-  [`docs/configuration.md`](../configuration.md) (done).
-- Write to a temporary file and `os.replace` it over the original.
+- Build the YAML text first, write it to a temporary file in the same folder, then `os.replace` it over the original.
+- Preserve comments with `ruamel.yaml`, or accept losing them and keep the explanations in
+  [`docs/configuration.md`](../configuration.md) (done; the page says it is the source of truth).
+- Chain the parser error (`raise RuntimeError(...) from e`, or include `str(e)`).
+- Add tests for the failure modes (`tests/test_configurator.py` only covers the success paths and creation of a missing file).
+
+## How to verify
+
+`python3 docs/problems/evidence/p09_configurator.py` ends with `VERDICT FIXED` once comments survive and a failed write leaves
+the file intact.

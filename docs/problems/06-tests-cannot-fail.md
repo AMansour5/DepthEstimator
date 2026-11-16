@@ -1,62 +1,54 @@
-# P06: Most tests can't fail, and `pytest` collects only 2 tests
+# P06: The tests are real now, but half of them can't run on another machine, and the fixes have no tests
 
 | | |
 |---|---|
 | **Severity** | Medium |
-| **Status** | Reproduced (`evidence/p06_tests_cannot_fail.py`) |
-| **Where** | `src/tests/*.py` (all of them) |
+| **Status** | **Partly fixed**. `evidence/p06_tests_cannot_fail.py` prints `VERDICT PARTLY FIXED` |
+| **Where** | `src/tests/*.py`: `test_object_detector.py:16` and `test_stereo_processor.py:16-17,43-44` (absolute `/home/mansour/...` paths); `test_stereo_camera.py:29-50` (`test_view_feed`), `test_disparity_tuner.py` and `test_object_detector.py:11-40` (GUI loops); `test_configurator.py:4-9` (asserts this machine's camera config); `pyproject.toml` (no pytest configuration) |
 
-## Summary
+## Resolved (`87b2af6`, then `d403a39` and `c39cf63`)
 
-Of the test files, only `test_configurator_set_config.py` is a real, discoverable, hardware-free test.
-The others either swallow their own failures, depend on files only present on the author's computer,
-need hardware, or aren't discovered by `pytest` at all.
+The original complaint was that the tests could not fail and pytest found 2 of them. That is fixed:
 
-> **Part of this is my doing.** `src/tests/DepthEstimatorTest.py` (the file with 10 synthetic-disparity
-> tests that I wrote earlier in this conversation) is *not collected by pytest* because of its file and class
-> names. It does run with `python -m src.tests.DepthEstimatorTest`, but never as part of a normal test run.
+- Files are named `test_*.py` with `def test_...` functions, so `python -m pytest` collects **31 tests in 7 files**.
+- The `try/except` that swallowed assertion failures is gone (the scan finds no `except` in any test file).
+- The depth math has 10 synthetic-disparity tests (`test_depth_estimator.py`), the P01 fix has 4 (`test_stereo_dead_band.py`), the
+  camera reader thread has 3 fake-capture tests (`test_stereo_camera.py`), and `Configurator.setConfig` has 2.
 
-## Why it happens
+## Still open
 
-1. **Assertions inside `try/except Exception`.** `ConfiguratorTest.py:15`, `StereoProcessorTest.py:15,27,...`
-   and `ObjectDetectorTest.py` catch the `AssertionError`, print a message, and carry on. The script
-   still ends with "All tests completed." and exit code 0.
-2. **Hard-coded absolute paths** such as `/home/mansour/Desktop/DepthEstimator/src/images/left/000.png`
-   (`ObjectDetectorTest.py:22`, `StereoProcessorTest.py:22-23, 51-52`). On any other machine
-   `cv2.imread` returns `None`, which the same `try/except` then swallows.
-3. **Discovery.** pytest collects `test_*.py` / `*_test.py` files and `Test*` classes. `DepthEstimatorTest.py` and the
-   `*Test.py` files don't match; `ConfiguratorTest.py`'s class is named `TestConfigurator` but the file name still doesn't match.
-4. `StereoCameraTest.py` and `DisparityTunerTest.py` need a camera and a display, and so can't run in CI.
+1. **Only 20 of the 31 tests run in a clean clone** (copy of the tracked files, no camera, no display, no model, no
+   calibration). The result of running them that way (part D of the script):
 
-## Evidence
+   ```
+   no camera, display, model or calibration needed : 20 passed
+   test_stereo_processor.py (needs calibration+images): 5 failed
+   ```
 
-```
-A) what pytest collects from src/tests
-   src/tests/test_configurator_set_config.py::test_set_config_creates_missing_file
-   src/tests/test_configurator_set_config.py::test_set_config_merges_and_preserves_untouched_keys
-   2 tests collected
+   | Group | Tests | Why it can't run elsewhere |
+   |---|---|---|
+   | portable | 20 | `test_depth_estimator`, `test_stereo_dead_band`, `test_configurator`, 3 fake-capture camera tests |
+   | needs the author's files | 5 | `test_stereo_processor.py`: `src/matrices/stereo_calib.npz` and `src/images/*.png` are git-ignored and referenced by `/home/mansour/...` |
+   | needs model + image + window | 2 | `test_object_detector.py`: weights, absolute path, and `test_detect_objects` blocks on `cv2.imshow` until `q` |
+   | needs the camera / a display | 4 | `test_camera_open`, `test_frame_capture`, `test_view_feed` (loops until `q`), `test_run` (launches the tuner) |
 
-B) ConfiguratorTest with a deliberately WRONG config value
-Error loading camera config:
-   -> returned normally: the test run would still end with 'All tests completed.' and exit code 0
-```
-
-## Effects
-
-- A green run proves almost nothing. Regressions such as [P03](03-invalid-disparity-assumes-min-disparity-zero.md) would not be caught.
-- The most valuable tests (the depth math) are exactly the ones nobody would run by accident.
-- New contributors can't tell which tests are meaningful.
+   A plain `pytest` therefore hangs or fails on a machine without the hardware, and opens windows on one with it.
+2. **One test asserts this machine's configuration.** `test_load_camera_config` expects `camera_index == "/dev/video2"` and
+   3840x1080; with any other valid config it raises `AssertionError` (it can fail, but for the wrong reason).
+3. **No pytest configuration or markers**, so nothing says which tests are hardware tests or lets CI skip them.
+4. **No regression test for several fixes**: the P02 size check (left or right), the P03 sentinel (configured or override),
+   the P04 exceptions, the P08 unit. This is how P03 got "fixed" for the config path and still broke for the override path.
 
 ## Suggested fixes
 
-1. Rename `DepthEstimatorTest.py` to `test_depth_estimator.py` and the class to `TestDepthEstimator` (or use plain
-   `def test_...` functions).
-2. Remove the `try/except` from tests; let assertions fail.
-3. Replace hard-coded paths with `tmp_path` fixtures and synthetic data (see `evidence/common.py` for a
-   synthetic calibration and a synthetic stereo pair).
-4. Mark the camera/GUI tests (`@pytest.mark.hardware`) and skip them unless asked for.
-5. Add the commands to the README and run `python -m pytest -q` in CI.
+1. Register a marker (`[tool.pytest.ini_options] markers = ["hardware: needs a camera, display, model or the author's files"]`)
+   and deselect it by default with `addopts = "-m 'not hardware'"`; run them with `pytest -m hardware`.
+2. Replace `/home/mansour/...` with paths relative to the test file, and build a synthetic calibration with
+   `tmp_path` (the writer in `evidence/common.py` is a ready-made example) so `StereoProcessor` is testable anywhere.
+3. Make `test_load_camera_config` check the keys' types and plausibility, not this machine's values.
+4. Add the missing regression tests listed above.
 
-## How to verify a fix
+## How to verify
 
-`python -m pytest -q` should list the depth-estimator tests, and deliberately breaking one expectation should turn the run red.
+`python3 docs/problems/evidence/p06_tests_cannot_fail.py` and then, after the fixes, `python -m pytest -q` on a clean clone
+with no hardware should pass without opening a window.

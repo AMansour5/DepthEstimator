@@ -2,60 +2,60 @@
 
 | | |
 |---|---|
-| **Severity** | High |
-| **Status** | Reproduced (`evidence/p02_frame_size.py`) |
-| **Where** | `src/services/StereoProcessor.py:40-50` (`rectifyImages`); `src/services/StereoCamera.py:9-10` (defaults `1280x480`) and `:35-38` (warning only) |
+| **Severity** | High (before the fix) |
+| **Status** | **Partly fixed**. The left image is now checked; the right image and the camera are not. `evidence/p02_frame_size.py` prints `VERDICT PARTLY FIXED` |
+| **Where** | `src/services/StereoProcessor.py:41-53` (`rectifyImages`, check at `:44-46`); `src/exceptions/DifferentImageSizeError.py`; `src/services/StereoCamera.py:8-11` (defaults `1280x480`), `:56-76` (`__setupCamera`, warning only), `:23-32` (`open`, swallows errors) |
 
-## Summary
+## Resolution so far (`e645de6`)
 
-The rectification maps are built for the calibration's `img_size` (e.g. 1920x1080 per eye).
-If the camera delivers a different size, `cv2.remap` does **not** fail: it returns an image of the
-*map's* size, sampling coordinates that mostly fall outside the smaller input, so most of the output
-is black border.
-
-## Why it happens
-
-- `cv2.remap` takes its output size from the maps, not from the input image, and fills out-of-range
-  samples with 0 (default `BORDER_CONSTANT`).
-- `StereoCamera.__setupCamera` only **prints** `WARNING: camera did not accept the requested
-  resolution...` and carries on. Cameras commonly fall back to another mode when the requested one
-  isn't available.
-- `StereoCamera`'s constructor defaults are `1280x480`, which would give `640x480` halves. If
-  `stereo_camera.yaml` is missing those keys, this is what you get.
-- Nothing in `StereoProcessor` or `Orchestrator` compares the frame size to `img_size`.
-
-## Evidence
-
-Synthetic calibration for 1920x1080, three kinds of input:
+`StereoProcessor` now stores the calibration's `img_size` as `calib_img_size`, and `rectifyImages` raises
+`DifferentImageSizeError` when the **left** image has another size, so the original failure (a 640x480 or 640x720 frame
+becoming a 1920x1080 image that is 78-85% black) can no longer happen silently:
 
 ```
-matches calibration                         input 1920x1080 -> output 1920x1080, no exception, 100% content
-StereoCamera default 1280x480 -> 640x480    input 640x480   -> output 1920x1080, no exception,  15% content
-camera negotiated 1280x720 -> 640x720       input 640x720   -> output 1920x1080, no exception,  22% content
+both 640x480 (StereoCamera's default 1280x480 combined)    -> DifferentImageSizeError
+both 640x720 (camera negotiated 1280x720 combined)         -> DifferentImageSizeError
 ```
 
-## Effects
+## What is still open
 
-- The wrong frame looks like a valid 1920x1080 frame, so everything downstream keeps running.
-  YOLO sees a small image in a black frame, SGBM matches a small region, and the depth numbers that
-  come out look plausible but are wrong.
-- The calibrated focal length and baseline no longer describe the image, so even the depths that
-  *are* computed are scaled wrongly.
-- The only trace is one console line at startup, which is easy to miss when the window opens.
+1. **The right image is never compared.** `rectifyImages` reads the size from `left_img` only. A right frame of the wrong
+   size is rectified without an error (output 1920x1080, 15% content in the check):
 
-## Suggested fixes
+   ```
+   left 1920x1080, RIGHT 640x480   -> no exception, right output 1920x1080, 15% of it has image content
+   ```
+
+   With the current `StereoCamera` both halves come from one frame, so they cannot differ today; it matters for any other
+   `ICamera` implementation and for anyone calling `rectifyImages` directly.
+2. **`StereoCamera` still only prints** `WARNING: camera did not accept the requested resolution...` and keeps running
+   (`open()` also catches every exception and leaves the capture as `None`). The first sign of a negotiated size is now an
+   exception on the first frame instead of a bad picture, which is better, but the message points at the processor, not at the
+   camera setting that caused it.
+3. **The `1280x480` fallbacks** in `StereoCamera.__init__` (used if `stereo_camera.yaml` lacks a key) still disagree with a
+   Full-HD calibration.
+
+## Why it happened (original analysis)
+
+- `cv2.remap` takes its output size from the maps, not from the input image, and fills out-of-range samples with 0.
+- Cameras commonly fall back to another mode when the requested one isn't available, and `StereoCamera` only printed.
+- Nothing compared the frame size with `img_size`.
+
+## Suggested fix for what remains
 
 ```python
 # StereoProcessor.rectifyImages
-h, w = left_img.shape[:2]
-if (w, h) != self.img_size or right_img.shape[:2] != (h, w):
-    raise ValueError(f"Frames are {w}x{h} but the calibration is for {self.img_size[0]}x{self.img_size[1]}. "
-                     "Capture at the calibrated resolution or re-calibrate.")
+for name, img in (("left", left_img), ("right", right_img)):
+    if (img.shape[1], img.shape[0]) != self.calib_img_size:
+        raise DifferentImageSizeError(f"{name} image is {img.shape[1]}x{img.shape[0]}, "
+                                      f"calibration is {self.calib_img_size[0]}x{self.calib_img_size[1]}.")
 ```
 
-and make `StereoCamera` raise (not print) when the camera reports a size other than the one
-requested. Also remove the `1280x480` fallbacks, or make them match the calibration.
+and make `StereoCamera.__setupCamera` raise (not print) when the reported size differs from the requested one. Add the
+two regression tests (right-size mismatch; negotiated-size mismatch with the fake capture already used in
+`src/tests/test_stereo_camera.py`): today nothing tests this at all.
 
-## How to verify a fix
+## How to verify
 
-`evidence/p02_frame_size.py` should raise for the two mismatched cases instead of printing a result.
+`python3 docs/problems/evidence/p02_frame_size.py` should end with `VERDICT FIXED` once the right image and the camera are
+checked.

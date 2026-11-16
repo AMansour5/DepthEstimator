@@ -1,16 +1,27 @@
 # Known problems
 
-Problems found by reading every file in the repository (`main` at commit `90dda91`) and then
-**testing each suspicion** before writing it down. Each problem has its own file with the same
-layout: where it is, why it happens, the evidence, its effects, and a suggested fix.
+Problems found by reading every file in the repository and then **testing each suspicion** before writing it down. Each problem has
+its own file with the same layout: where it is, why it happens, the evidence, its effects, and a suggested fix.
+
+The first version of this list described commit `90dda91`. It was audited again at commit `c39cf63` (the P01 fix): every
+problem was re-checked against the current code, and two new ones were found (P12, P13). One problem previously considered
+solved (P03) is reopened.
+
+**Summary of the 13: 4 fixed (P01, P04, P07, P10), 6 partly fixed (P02, P03, P05, P06, P08, P09), 1 mitigated (P11) and 2 new
+(P12, P13).** The original list had 11 entries.
 
 ## How sure am I? (the *Status* of each problem)
 
 | Status | Meaning |
 |---|---|
-| **Reproduced** | A script in [`evidence/`](evidence/) demonstrates it on synthetic data using your real code and your real `config/*.yaml`. Re-run it yourself. |
-| **Source-read** | Established by reading the code or a library's source, but not executed in my environment (the problem file says exactly what was not run). |
-| **Unverified** | Plausible from the code, but needs your hardware to confirm. The file explains how to check. |
+| **Fixed** | The code no longer has the problem. The evidence script (or a test) shows it, and prints `VERDICT FIXED`. |
+| **Partly fixed** | The main symptom is gone but a verified residual remains. The problem file lists exactly what is left. |
+| **Mitigated** | A workaround is in place and tested, but the root cause cannot be checked without your hardware. |
+| **Open / New** | Reproduced by a script in [`evidence/`](evidence/) on synthetic data, with your real code and `config/*.yaml`, and not fixed yet. |
+| **Source-read** | Established by reading code or a library's source, not executed (the file says what was not run). |
+
+Each evidence script ends with a line `VERDICT FIXED | PARTLY FIXED | STILL PRESENT` computed from the code, so a re-run tells
+you whether a change moved anything.
 
 ## Severity
 
@@ -20,33 +31,59 @@ layout: where it is, why it happens, the evidence, its effects, and a suggested 
 | **Medium** | Blocks or confuses setup, hides failures, or breaks on another machine. |
 | **Low** | Maintainability or polish, with no measurable effect on results today. |
 
-## Index
+## Open or partly fixed
 
 | # | Problem | Severity | Status |
 |---|---|---|---|
-| [P01](01-sgbm-dead-band.md) | With `numDisparities: 320`, a third of the frame can never get a depth | High | Reproduced |
-| [P02](02-frame-size-vs-calibration.md) | A wrong frame size is rectified silently into a mostly-black image | High | Reproduced |
-| [P03](03-invalid-disparity-assumes-min-disparity-zero.md) | With `minDisparity ≥ 1`, "no match" pixels become a confident wrong depth | High (latent) | Reproduced |
-| [P04](04-silent-detector-failure.md) | A broken detector is indistinguishable from an empty scene | High | Reproduced |
-| [P05](05-not-runnable-from-clean-clone.md) | A fresh clone can't run; paths depend on the working directory | Medium | Reproduced |
-| [P06](06-tests-cannot-fail.md) | Most tests can't fail, and `pytest` collects only 2 tests | Medium | Reproduced |
-| [P07](07-hardcoded-cuda-device.md) | `device: CUDA` breaks detection on machines without a GPU | Medium | Source-read |
-| [P08](08-implicit-units.md) | Units of depth are implicit and inconsistent (mm vs cm) | Medium | Source-read |
-| [P09](09-configurator-error-handling-and-rewrites.md) | `Configurator` turns errors into `None` and rewrites YAML files destructively | Low | Reproduced |
-| [P10](10-duplicated-disparity-code.md) | Disparity code is copied in three places (and has already drifted) | Low | Reproduced (no effect today) |
-| [P11](11-possible-camera-latency.md) | Camera frames may be stale because the capture buffer is never limited | Low | Mitigated |
+| [P03](03-invalid-disparity-assumes-min-disparity-zero.md) | The tuner's `minDisparity` slider still turns "no match" into a "reliable" wrong depth (the override path is not clamped) | High for the tuner, latent otherwise | Partly fixed (reopened) |
+| [P02](02-frame-size-vs-calibration.md) | The right image's size is never checked, and the camera only warns about a negotiated size | Medium | Partly fixed |
+| [P08](08-implicit-units.md) | The unit of depth is recorded (`square_size_mm`) but never applied | Medium | Partly fixed |
+| [P05](05-not-runnable-from-clean-clone.md) | Artifact paths depend on the working directory; calibration and weights are not in the repository | Medium | Partly fixed |
+| [P06](06-tests-cannot-fail.md) | 20 of 31 tests run on a clean clone; the other 11 need hardware or this machine; P02/P03/P04/P08 have no tests | Medium | Partly fixed |
+| [P12](12-non-editable-install-broken.md) | `pip install .` ships no `config/` and doesn't declare `ultralytics` | Medium | **New** (reproduced) |
+| [P09](09-configurator-error-handling-and-rewrites.md) | `setConfig` drops comments, re-sorts keys, and a failed write empties the file | Low | Partly fixed |
+| [P13](13-calibration-schema-unused-required-keys.md) | Two required calibration keys nothing uses; old calibration files no longer load | Low | **New** (reproduced) |
+| [P11](11-possible-camera-latency.md) | Camera frames may be stale if the backend queues them | Low | Mitigated (reader thread) |
 
-**How the problems combine.** P01 creates unmatched pixels, P03 turns them into wrong depths when
-`minDisparity > 0`, and P04/P07/P09 make the resulting failures silent. Fixing P01 and P04 first
-removes most of the practical risk.
+## Resolved
+
+| # | Problem | Severity | Fixed in |
+|---|---|---|---|
+| [P01](01-sgbm-dead-band.md) | SGBM left the leftmost `numDisparities` columns without a depth (a third of the frame at 320) | High | `c39cf63` (pad, match, crop) |
+| [P04](04-silent-detector-failure.md) | A broken detector was indistinguishable from an empty scene | High | `ffade17` (it raises) |
+| [P07](07-hardcoded-cuda-device.md) | `device: CUDA` broke detection on machines without a GPU | Medium | `db60e9b` (`device: null`) |
+| [P10](10-duplicated-disparity-code.md) | Disparity code was copied in three places | Low | `084b056` (one `computeDisparity`, one visualizer) |
+
+## How the problems combine
+
+- [P01](01-sgbm-dead-band.md) used to create unmatched pixels; with [P03](03-invalid-disparity-assumes-min-disparity-zero.md) still open
+  for the override path, any unmatched pixel can turn into a confidently wrong depth while you tune with `minDisparity > 1`.
+- [P04](04-silent-detector-failure.md) and [P07](07-hardcoded-cuda-device.md), which hid most failures, are fixed. What can
+  still go wrong without an error is **scale**: a wrong unit ([P08](08-implicit-units.md)) or a wrong frame (right image, [P02](02-frame-size-vs-calibration.md))
+  produces plausible depths that are off by a constant factor.
+- [P05](05-not-runnable-from-clean-clone.md), [P06](06-tests-cannot-fail.md), [P12](12-non-editable-install-broken.md) and
+  [P13](13-calibration-schema-unused-required-keys.md) are about running the project anywhere but the author's machine.
+
+**Suggested order for what remains:** P03 (one line plus a test), P02 (right-image check plus tests), P12 and P05 (declare
+`ultralytics`, resolve paths against the project root), then P08/P13 together (decide what `square_size_mm` means), then P06.
+
+## Investigated and not recorded as problems
+
+- **The left-edge tint** added for [P01](01-sgbm-dead-band.md) (`highlightLeftInvalidBand`) follows *any* contiguous invalid strip
+  that touches the left edge, including an occlusion behind a near object. That is what it says it does, so it is described in
+  P01 rather than recorded as a defect.
+- **Padding cost** for P01 (about 46 ms to 56 ms on the real 1920x1080 sample pair at `numDisparities: 272`) is a trade-off,
+  documented in P01.
+- **Extrapolated disparities** in the `d` leftmost columns are a property of stereo (those pixels are outside the right camera's
+  view), documented as P01's residual.
 
 ## Reproducing the evidence
 
 ```bash
 pip install numpy opencv-python pyyaml zope.interface pytest
-python docs/problems/evidence/p01_dead_band.py        # likewise p02 ... p10
+python3 docs/problems/evidence/p01_dead_band.py        # likewise p02 ... p13 (there is no p07, p08 or p11)
 ```
 
-All scripts use **synthetic stereo pairs and a synthetic calibration file**, so they run without
-a camera, a real calibration, or YOLO weights. Numbers that depend on your camera (focal length,
-baseline) are marked *illustrative* wherever they appear.
+All scripts use **synthetic stereo pairs and a synthetic calibration file**, so they run without a camera, a real calibration,
+or YOLO weights (`p12` needs Python 3.11+ for `tomllib`). Numbers that depend on your camera (focal length, baseline) are marked
+*illustrative* wherever they appear. See [`evidence/README.md`](evidence/README.md).

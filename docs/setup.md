@@ -3,27 +3,32 @@
 ## Requirements
 
 - **Hardware:** a side-by-side stereo camera that appears as a single video device (the default config expects
-  `/dev/video2`, i.e. Linux/V4L2, delivering 3840x1080 MJPG). An NVIDIA GPU is recommended for YOLO; see
-  [P07](problems/07-hardcoded-cuda-device.md).
-- **Python:** 3.8 or newer (the floor set by ultralytics; use whatever your PyTorch install supports).
-- **Packages** (the repository has no `requirements.txt`; this list comes from the imports):
+  `/dev/video2`, i.e. Linux/V4L2, delivering 3840x1080 MJPG). A GPU is recommended for YOLO but not required: with
+  `device: null` ultralytics falls back to the CPU ([P07](problems/07-hardcoded-cuda-device.md)).
+- **Python:** 3.9 or newer (`requires-python` in `pyproject.toml`; use whatever your PyTorch install supports).
+- **Packages:** `pyproject.toml` declares `opencv-python`, `numpy`, `PyYAML` and `zope.interface`, but **not `ultralytics`**
+  ([P12](problems/12-non-editable-install-broken.md)). From the repository root:
 
   ```bash
-  pip install numpy opencv-python pyyaml ultralytics zope.interface pytest
+  pip install -e .                 # the project and its declared dependencies, plus the estimate-depth / tune-disparity commands
+  pip install ultralytics          # YOLO (installs PyTorch); not declared yet
+  pip install -e ".[dev]"          # optional: pytest
   ```
 
-  Use `opencv-python`, not `opencv-python-headless`: the program opens windows with `cv2.imshow`.
-  `ultralytics` installs PyTorch. `pytest` is only for the tests.
+  Use an **editable** install (`-e`): a regular `pip install .` does not ship `config/`, and the program can't find its
+  settings ([P12](problems/12-non-editable-install-broken.md)). Use `opencv-python`, not `opencv-python-headless`: the
+  program opens windows with `cv2.imshow`. There is no `requirements.txt`; `pyproject.toml` is the list.
 
 ## The two files you must provide
 
 Both are git-ignored (`*.npz`, `*.pt`), so a fresh clone does not contain them
-([P05](problems/05-not-runnable-from-clean-clone.md)).
+([P05](problems/05-not-runnable-from-clean-clone.md)). The folders `src/matrices/` and `src/models/` exist (a tracked
+`.gitkeep` each).
 
 ### 1. Stereo calibration: `src/matrices/stereo_calib.npz`
 
 Produced by your capture and calibration scripts (they are not part of this repository). `StereoProcessor`
-expects a NumPy `.npz` with exactly these keys:
+expects a NumPy `.npz` with these keys, **all required** (extra keys such as `E`, `F`, `rms_left`, `rms_right` are ignored):
 
 | Key | Meaning |
 |---|---|
@@ -32,14 +37,21 @@ expects a NumPy `.npz` with exactly these keys:
 | `R`, `T` | rotation and translation from the left to the right camera |
 | `img_size` | `(width, height)` of **one** eye's image, e.g. `(1920, 1080)` |
 | `rms_stereo` | stereo calibration RMS reprojection error (float; only read, not used in calculations) |
+| `square_size_mm` | the checkerboard square size you entered (float). Required, **but only recorded**: nothing uses it ([P13](problems/13-calibration-schema-unused-required-keys.md)) |
+| `checkerboard` | inner-corner counts `(columns, rows)` of the board (two ints). Required, only recorded |
+
+A calibration file from before `square_size_mm` and `checkerboard` were added fails to load with
+`RuntimeError: Failed to load calibration file: 'square_size_mm is not a file in the archive'`
+([P13](problems/13-calibration-schema-unused-required-keys.md)); add the two keys with `numpy.savez`.
 
 Two things that are easy to get wrong:
 
-- **`img_size` must equal the size of each half of the camera frame** at runtime, or rectification silently produces
-  a mostly-black image ([P02](problems/02-frame-size-vs-calibration.md)).
+- **`img_size` must equal the size of each half of the camera frame** at runtime. A mismatched *left* image raises
+  `DifferentImageSizeError`; a mismatched right image is not checked
+  ([P02](problems/02-frame-size-vs-calibration.md)).
 - **Units.** Depth comes out in the unit you used for the checkerboard square size when calibrating. The code
-  assumes **millimetres**. If you entered centimetres, every depth is wrong by a constant factor and nothing warns
-  you ([P08](problems/08-implicit-units.md)).
+  assumes **millimetres**, and `square_size_mm` does not convert anything. If you entered centimetres, every depth is wrong by
+  a constant factor and nothing warns you ([P08](problems/08-implicit-units.md)).
 
 The calibration is read at start-up and the rectification maps are built once.
 
@@ -56,13 +68,15 @@ mkdir -p src/models && mv yolov8n.pt src/models/
 ## Run from the project root
 
 Both `calibration_path` and `model_path` are **relative paths**, so start every command from the repository root
-(the folder that contains `config/` and `src/`):
+(the folder that contains `config/` and `src/`) ([P05](problems/05-not-runnable-from-clean-clone.md)):
 
 ```bash
-python -m src.services.Orchestrator        # the live demo; press q in the window to quit
-python -m src.tests.DisparityTunerTest     # interactive SGBM tuning (see tuning-guide.md)
-python -m pytest -q                        # the automated tests (see testing.md)
+python -m src.services.Orchestrator       # the live demo; press q in the window to quit   (or: estimate-depth)
+python -m src.tuners.DisparityTuner       # interactive SGBM tuning (see tuning-guide.md)  (or: tune-disparity)
+python -m pytest -q                       # the tests (see testing.md: some need a camera, a display or the author's files)
 ```
+
+The two console commands exist after `pip install -e .` and also need the repository root as the working directory.
 
 ## What you should see
 
@@ -70,18 +84,25 @@ The demo window has two panels:
 
 - **Left:** the rectified left image with each detection, its class, confidence and distance in metres. A thin inner
   rectangle shows the region actually sampled for depth.
-- **Right:** the disparity map with the same boxes, so a missing depth shows up as a black hole under the box.
+- **Right:** the disparity map with the same boxes, so a missing depth shows up as a black hole under the box. A dark-red
+  strip with a red edge line along the left side marks an invalid region that touches the left edge
+  ([P01](problems/01-sgbm-dead-band.md)).
 - A green status line: `YOLO <ms> | SGBM <ms> | <fps> FPS`.
 
 Box colours: **green** = depth looks reliable, **orange** (with `?`) = computed but suspicious, **red** = no usable
 disparity in the sampled region.
 
+If a component fails (missing model, a detector error, a wrong frame size), the demo prints the error with a traceback and
+exits with status 1 instead of showing a window without boxes ([P04](problems/04-silent-detector-failure.md)).
+
 ## First-run checklist
 
 1. The console prints no `WARNING: camera did not accept the requested resolution...` line. If it does, fix
-   `stereo_camera.yaml` first.
-2. The left half of the disparity panel isn't solid black ([P01](problems/01-sgbm-dead-band.md)).
-3. Boxes appear. If you get a normal FPS counter and *never* any boxes, the detector probably failed to load
-   ([P04](problems/04-silent-detector-failure.md)); look for `Error: Failed to ...` lines in the console.
+   `stereo_camera.yaml` first (a size that differs from the calibration will stop the first frame with
+   `DifferentImageSizeError`, [P02](problems/02-frame-size-vs-calibration.md)).
+2. The tinted strip on the left of the disparity panel is narrow. A wide one means that part of the scene has no matches
+   (texture, occlusion); the strip is no longer caused by `numDisparities` ([P01](problems/01-sgbm-dead-band.md)).
+3. Boxes appear. A missing model or a failing detector now stops the program with an error
+   ([P04](problems/04-silent-detector-failure.md)); no boxes with a healthy console means nothing was detected.
 4. A known distance reads correctly: hold an object at a measured distance and compare. If it is off by a constant
    factor, check units ([P08](problems/08-implicit-units.md)).

@@ -16,15 +16,17 @@ found regardless of the working directory (file paths *inside* the YAML are a di
 | `combined_width` | `1280` | `3840` | Width of the **combined** left+right frame, requested from the camera |
 | `combined_height` | `480` | `1080` | Height of the combined frame |
 | `preview_width` | `640` | `640` | Only used by `StereoCamera.resize_for_preview` (the camera test) |
+| `frame_timeout` | `2.0` | *(not set)* | Seconds `getFrames()` waits for a frame newer than the last one; after that it returns `(None, None)` and the demo stops. Not in the YAML today, so the default applies |
 
-Each eye is `combined_width / 2` wide. It **must match** the calibration's `img_size`
-([P02](problems/02-frame-size-vs-calibration.md)). The camera is opened with MJPG at 30 FPS.
+Each eye is `combined_width / 2` wide. It **must match** the calibration's `img_size`: a different left size raises
+`DifferentImageSizeError` ([P02](problems/02-frame-size-vs-calibration.md)). The camera is opened with MJPG at 30 FPS. If the
+camera reports another size than requested, `StereoCamera` prints a `WARNING` and keeps going.
 
 ## `stereo_processor.yaml`
 
 | Key | Meaning |
 |---|---|
-| `calibration_path` | Path to the calibration `.npz` (relative paths resolve against the **working directory**) |
+| `calibration_path` | Path to the calibration `.npz` (a relative path resolves against the **working directory**, so start from the repository root, [P05](problems/05-not-runnable-from-clean-clone.md)). The file needs the keys listed in [`setup.md`](setup.md), including `square_size_mm` and `checkerboard` |
 | `process_scale` | Scale applied to the rectified images **before** SGBM. `0.5` means SGBM runs on 960x540. Smaller is faster and less precise; `1.0` disables downscaling |
 | `matcher_params` | The SGBM settings below |
 
@@ -33,8 +35,8 @@ Each eye is `combined_width / 2` wide. It **must match** the calibration's `img_
 | Key | Current | Valid / typical | Effect |
 |---|---|---|---|
 | `blockSize` | `9` | odd; 3-11 is typical | Matching window. Larger = smoother, fewer holes, blurrier edges. `P1 = 8*blockSize^2` and `P2 = 32*blockSize^2` are derived from it |
-| `numDisparities` | `320` | positive **multiple of 16** | Search range in pixels (of the downscaled image). Sets the nearest measurable distance **and** the width of the unmeasurable left band ([P01](problems/01-sgbm-dead-band.md)) |
-| `minDisparity` | `0` | keep at `0` | Start of the search range. Values above 0 break the validity check ([P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
+| `numDisparities` | `272` | positive **multiple of 16** | Search range in pixels (of the downscaled image). Sets the nearest measurable distance. It no longer widens an unmeasurable left band ([P01](problems/01-sgbm-dead-band.md): the images are padded by this amount), but it still sets the **cost**: SGBM processes an image `numDisparities` columns wider, and a larger range means more chances of a wrong match. Use the smallest value that covers your nearest object |
+| `minDisparity` | `0` | keep at `0` | Start of the search range. Unmatched pixels are normalised to `-1` for the configured value; the tuner's slider (an override) is not normalised, so a value above 1 produces wrong depths while tuning ([P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
 | `uniquenessRatio` | `10` | about 5-15 | How much better the best match must be than the runner-up. Higher = fewer wrong matches, more holes |
 | `speckleWindowSize` | `100` | 0 disables; about 50-200 | Smallest blob size kept; smaller blobs are removed as noise |
 | `speckleRange` | `2` | 1-2 is typical | Disparity variation allowed within one blob |
@@ -48,10 +50,10 @@ The tuner's `d` key writes `process_scale` and the SGBM values back into this fi
 
 | Key | Current | Meaning |
 |---|---|---|
-| `model_path` | `src/models/yolov8n.pt` | YOLO weights (relative to the working directory) |
+| `model_path` | `src/models/yolov8n.pt` | YOLO weights (relative to the working directory; a bad path raises `YoloModelNotFound` at start-up) |
 | `conf_threshold` | `0.5` | Minimum confidence to keep a detection |
 | `classes` | `null` | List of COCO class ids to keep (e.g. `[0, 39, 41]` = person, bottle, cup); `null` = all |
-| `device` | `CUDA` | Where YOLO runs. **`null` lets ultralytics choose (GPU if available, else CPU).** `CUDA` fails without a GPU ([P07](problems/07-hardcoded-cuda-device.md)) |
+| `device` | `null` | Where YOLO runs. **`null` lets ultralytics choose (GPU if available, else CPU).** An explicit value such as `0`, `cuda:0` or `cpu` forces it; one the machine can't provide raises `DetectionError` on the first frame ([P07](problems/07-hardcoded-cuda-device.md)) |
 | `yolo_imgsz` | `640` | Size YOLO resizes its input to. Larger = more accurate on small objects, slower |
 
 ## `depth_estimator.yaml`
@@ -71,5 +73,6 @@ See [Depth estimation](depth-estimation.md) for how these interact.
 |---|---|
 | `combined_width / 2`, `combined_height` | `img_size` stored in the calibration file |
 | `process_scale` | the scale the disparity was tuned at (the tuner writes both together) |
-| `numDisparities` | the nearest distance you need: `needed = ceil(f_full * process_scale * baseline / Z_min / 16) * 16`; the tuner prints this for `Z_MIN_MM = 500` |
-| `device` | the hardware you are actually running on |
+| `numDisparities` | the nearest distance you need: `needed = ceil(f_full * process_scale * baseline / Z_min / 16) * 16`; the tuner prints this for `Z_MIN_MM = 500`. Don't go higher than you need: the cost grows with it |
+| `device` | the hardware you are actually running on (`null` is safe everywhere) |
+| `square_size_mm` (calibration file) | the unit the baseline is really in; it is recorded but **not applied**, so the code assumes millimetres ([P08](problems/08-implicit-units.md)) |

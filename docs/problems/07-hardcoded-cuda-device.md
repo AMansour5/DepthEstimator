@@ -1,51 +1,45 @@
-# P07: `device: CUDA` breaks detection on machines without a GPU
+# P07: `device: CUDA` broke detection on machines without a GPU
 
 | | |
 |---|---|
-| **Severity** | Medium |
-| **Status** | Source-read (ultralytics 8.4.191). **Not run** with PyTorch/a GPU in my environment. |
-| **Where** | `config/object_detector.yaml:4`; `src/services/ObjectDetector.py` (passes `device=self.device` to the model call inside `detect`) |
+| **Severity** | Medium (before the fix) |
+| **Status** | **Fixed** in `db60e9b`. The analysis of the failing path remains **source-read**: it was not executed on a machine without a GPU |
+| **Where** | `config/object_detector.yaml:4` (`device: null`); `src/services/ObjectDetector.py:10,27` (passes `device=self.device` to the model call) |
 
-## Summary
+## Resolution
 
-The most recent commit changed the value from `null` to `CUDA` while leaving the comment beside it
-(`None = ultralytics default (CUDA if available, else CPU)`) unchanged. `null` was the portable setting;
-`CUDA` makes a GPU mandatory.
+The default is `device: null` again, with a comment that matches it (`null = ultralytics default (CUDA if available, else CPU)`).
+Checked on this machine (PyTorch 2.11.0+cu130, ultralytics 8.3.242, a CUDA GPU present):
 
-## What I verified, and how
+```
+select_device('')     -> cuda:0
+select_device('cpu')  -> cpu
+select_device('CUDA') -> cuda:0
+```
 
-I downloaded the ultralytics wheel (8.4.191) and read `parse_device` / `select_device`
-in `ultralytics/utils/torch_utils.py`:
+so `null` selects the GPU when there is one and the CPU otherwise. And since [P04](04-silent-detector-failure.md) is fixed, an
+explicit device that cannot be used (for example `0` or `CUDA` on a laptop) now raises `DetectionError` on the first frame
+instead of producing a window that never shows a box.
 
-- The string is lower-cased and `"cuda"` is mapped to GPU `"0"`, so `CUDA` **works on a machine with a
-  working NVIDIA GPU**. The capitalisation is not the problem.
+## Source-read analysis (unchanged, still not executed without a GPU)
+
+From `parse_device` / `select_device` in `ultralytics/utils/torch_utils.py` (read on version 8.4.191):
+
+- The string is lower-cased and `"cuda"` is mapped to GPU `"0"`, so `CUDA` **works on a machine with a working NVIDIA GPU**.
+  The capitalisation was never the problem.
 - When a GPU is requested and `torch.cuda.is_available()` is false, `select_device` raises
   `ValueError: Invalid CUDA 'device=0' requested. Use 'device=cpu' or pass valid CUDA device(s)...`.
-- That call happens inside `self.model(...)` in `ObjectDetector.detect`, which is inside the broad
-  `try/except` described in [P04](04-silent-detector-failure.md).
+- The forms the library documents are `0`, `cuda:0`, `cpu`; the accepted spelling of `"CUDA"` is an implementation detail.
 
-I did not execute this path, so the exact message and timing are from the source, not observed. To
-check on a CPU-only machine:
+To check the failing path on a CPU-only machine:
 
 ```bash
 python -c "from ultralytics.utils.torch_utils import select_device; select_device('CUDA')"
 ```
 
-## Effects
+## Remaining advice
 
-- On a laptop without an NVIDIA GPU (a typical demo machine), every frame logs an error and
-  returns no detections ([P04](04-silent-detector-failure.md)); disparity keeps working, so the failure looks like
-  "YOLO doesn't detect anything".
-- Other accelerators (Apple MPS, AMD) can't use it either.
-- The comment and the value now contradict each other, which hides the cause.
-- How `"CUDA"` is parsed is an implementation detail of one ultralytics version; the forms the library
-  documents are `0`, `cuda:0`, `cpu`.
-
-## Suggested fix
-
-```yaml
-device: null      # ultralytics chooses: GPU if available, else CPU
-```
-
-Use `0` or `"cuda:0"` only on a machine you know has a GPU, ideally from a per-machine override rather
-than the committed default. Optionally log the chosen device at startup.
+- Keep `device: null` in the committed config; use `0` / `cuda:0` only on a machine you know has a GPU, ideally from a per-machine
+  override rather than the committed default. Apple MPS and AMD are only reachable with an explicit value.
+- Optionally log the device ultralytics chose at start-up, so "why is it slow" has an answer.
+- `device` appears in the list of "values that must agree with the hardware" in [`docs/configuration.md`](../configuration.md).

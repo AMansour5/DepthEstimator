@@ -69,7 +69,7 @@ class Orchestrator:
 
         future = self.pool.submit(self.__timedDisparity, rect_left, rect_right)  # SGBM in background
         t0 = time.perf_counter()
-        detections = self.detector.detect(rect_left)   # YOLO meanwhile (None on error -> [])
+        detections = self.detector.detect(rect_left)   # YOLO meanwhile (raises DetectionError on failure)
         yolo_ms = (time.perf_counter() - t0) * 1000.0
         disparity, sgbm_ms = future.result()                  # join: re-raises worker exceptions
 

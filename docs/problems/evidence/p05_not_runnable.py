@@ -1,24 +1,65 @@
-"""P05: a clean clone cannot run (artifacts are git-ignored), and paths depend on the working directory."""
-import os, tempfile
+"""P05: running the project from a clean clone. What is fixed, and what still depends on the working directory.
+
+Part A: what git actually tracks for the two git-ignored artifacts.
+Part B: relative calibration_path / model_path resolve against the CURRENT WORKING DIRECTORY.
+Part C: dependency declaration in pyproject.toml vs the imports in src/.
+"""
+import ast, os, subprocess, sys, tempfile
 from common import *
 from src.services.StereoProcessor import StereoProcessor
 
 cfg = load_stereo_processor_cfg()
-print("config paths:", cfg["calibration_path"], "(relative)")
-print("tracked in git?  models/*.pt and matrices/*.npz are covered by .gitignore (*.pt, *.npz)\n")
+det_cfg = yaml.safe_load((ROOT / "config" / "object_detector.yaml").read_text())
+print("config paths:", cfg["calibration_path"], "and", det_cfg["model_path"], "(both relative)\n")
 
-print("A) fresh clone: is there a calibration file?")
-exists = (ROOT / cfg["calibration_path"]).exists()
-print("  ", (ROOT / cfg["calibration_path"]), "->", "present" if exists else "MISSING")
+print("A) tracked by git in the artifact folders")
+tracked = subprocess.run(["git", "ls-files", "src/matrices", "src/models", "disparity_tuning_results"],
+                         cwd=ROOT, capture_output=True, text=True).stdout.split()
+print("   ", tracked)
+folders_exist = all(any(t.startswith(d) for t in tracked) for d in ("src/matrices", "src/models"))
+print("    folders exist on a clean clone (.gitkeep):", folders_exist)
+print("    calibration file and weights are NOT tracked -> a clean clone still needs them from you")
 
-print("\nB) same calibration file, same code, different working directory")
+print("\nB) the same complete synthetic calibration, referenced by a relative path, from two directories")
+cwd_dependent = False
 with tempfile.TemporaryDirectory() as tmp:
     os.makedirs(f"{tmp}/rel")
     synthetic_calibration(f"{tmp}/rel/stereo_calib.npz")
-    cfg["calibration_path"] = "rel/stereo_calib.npz"          # relative, like the real config
+    cfg["calibration_path"] = "rel/stereo_calib.npz"
     for label, cwd in (("cwd = folder that contains rel/", tmp), ("cwd = anywhere else", "/")):
         os.chdir(cwd)
         try:
-            StereoProcessor(cfg); print(f"   {label}: OK")
+            StereoProcessor(dict(cfg)); print(f"   {label}: OK")
         except Exception as e:
+            cwd_dependent = True
             print(f"   {label}: FAILED -> {e}")
+os.chdir(ROOT)
+
+print("\nC) pyproject.toml: declared dependencies vs third-party imports in src/ (excluding tests)")
+if sys.version_info >= (3, 11):
+    import tomllib
+    declared = {d.split(">")[0].split("<")[0].split("=")[0].strip().lower().replace("_", "-")
+                for d in tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["dependencies"]}
+    dist = {"cv2": "opencv-python", "yaml": "pyyaml", "zope": "zope.interface", "numpy": "numpy", "ultralytics": "ultralytics"}
+    imported = set()
+    for f in (ROOT / "src").rglob("*.py"):
+        if "tests" in f.parts:
+            continue
+        for node in ast.walk(ast.parse(f.read_text())):
+            mods = [node.module] if isinstance(node, ast.ImportFrom) and node.module else \
+                   [a.name for a in node.names] if isinstance(node, ast.Import) else []
+            imported |= {m.split(".")[0] for m in mods}
+    third = {m for m in imported if m not in sys.stdlib_module_names and m not in ("src",)}
+    print("   third-party imports:", sorted(third))
+    print("   declared           :", sorted(declared))
+    missing = sorted(dist.get(m, m) for m in third if dist.get(m, m) not in declared)
+    print("   imported but not declared:", missing or "none")
+else:
+    missing = []
+    print("   (needs Python 3.11+ for tomllib; skipped)")
+
+if not cwd_dependent and not missing:
+    verdict("FIXED", "paths are cwd-independent and dependencies are complete")
+else:
+    verdict("PARTLY FIXED", "pyproject.toml and .gitkeep folders exist; still open: cwd-relative artifact paths"
+            + (f", undeclared dependency {missing}" if missing else "") + ", no calibration tooling in the repo")
