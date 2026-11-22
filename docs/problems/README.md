@@ -7,8 +7,8 @@ The first version of this list described commit `90dda91`. It was audited again 
 problem was re-checked against the current code, and two new ones were found (P12, P13). P03 was reopened in that audit and
 has since been fixed for both configured and overridden `minDisparity` values.
 
-**Summary of the 13: 8 fixed (P01, P02, P03, P04, P05, P07, P10, P12), 3 partly fixed (P06, P08, P09), 1 mitigated (P11) and 1 new
-(P13).** The original list had 11 entries.
+**Summary of the 13: 9 fixed (P01, P02, P03, P04, P05, P07, P10, P12, P13), 3 partly fixed (P06, P08, P09), and 1 mitigated
+(P11).** The original list had 11 entries.
 
 ## How sure am I? (the *Status* of each problem)
 
@@ -35,10 +35,9 @@ you whether a change moved anything.
 
 | # | Problem | Severity | Status |
 |---|---|---|---|
-| [P08](08-implicit-units.md) | The unit of depth is recorded (`square_size_mm`) but never applied | Medium | Partly fixed |
-| [P06](06-tests-cannot-fail.md) | 23 of 34 tests can run without hardware; the other 11 need hardware or this machine; P03/P04/P08 have no pytest regression tests | Medium | Partly fixed |
+| [P08](08-implicit-units.md) | New files mark `T` in mm; legacy or mislabeled calibrations may still have the wrong scale | Medium | Partly fixed |
+| [P06](06-tests-cannot-fail.md) | 27 of 38 tests can run without hardware; the other 11 need hardware or this machine; P03/P04 lack pytest regression tests | Medium | Partly fixed |
 | [P09](09-configurator-error-handling-and-rewrites.md) | `setConfig` drops comments, re-sorts keys, and a failed write empties the file | Low | Partly fixed |
-| [P13](13-calibration-schema-unused-required-keys.md) | Two required calibration keys nothing uses; old calibration files no longer load | Low | **New** (reproduced) |
 | [P11](11-possible-camera-latency.md) | Camera frames may be stale if the backend queues them | Low | Mitigated (reader thread) |
 
 ## Resolved
@@ -53,18 +52,19 @@ you whether a change moved anything.
 | [P07](07-hardcoded-cuda-device.md) | `device: CUDA` broke detection on machines without a GPU | Medium | `db60e9b` (`device: null`) |
 | [P10](10-duplicated-disparity-code.md) | Disparity code was copied in three places | Low | `084b056` (one `computeDisparity`, one visualizer) |
 | [P12](12-non-editable-install-broken.md) | A regular install lacked packaged config and used a generic top-level package name | Medium | Renamed to `depth_estimator`, moved config inside the package, added package data, and declared dependencies |
+| [P13](13-calibration-schema-unused-required-keys.md) | Legacy calibration metadata was required but unused | Low | Optional descriptive metadata, legacy assumed-mm warning, and explicit mm unit contract |
 
 ## How the problems combine
 
 - [P01](01-sgbm-dead-band.md) used to create unmatched pixels; [P03](03-invalid-disparity-assumes-min-disparity-zero.md) now
   ensures they remain invalid for both configured and overridden `minDisparity` values.
 - [P02](02-frame-size-vs-calibration.md), [P04](04-silent-detector-failure.md) and [P07](07-hardcoded-cuda-device.md), which
-  could silently accept wrong inputs or hide failures, are fixed. What can still go wrong without an error is **scale**: a
-  wrong unit ([P08](08-implicit-units.md)) produces plausible depths that are off by a constant factor.
-- [P06](06-tests-cannot-fail.md) and [P13](13-calibration-schema-unused-required-keys.md) are about running the project
-  anywhere but the author's machine.
+  could silently accept wrong inputs or hide failures, are fixed. A wrong legacy calibration scale can still produce
+  plausible depths ([P08](08-implicit-units.md)); new files now declare the unit, but calibration accuracy must still be checked.
+- [P06](06-tests-cannot-fail.md) is about running the project anywhere but the author's machine. P13's legacy compatibility
+  issue is fixed; its schema and unit behavior are covered by hardware-free tests and evidence.
 
-**Suggested order for what remains:** P08/P13 together (decide what `square_size_mm` means), then P06.
+**Suggested order for what remains:** P08 (verify the external calibration producer and known-distance scale), then P06.
 
 ## Investigated and not recorded as problems
 

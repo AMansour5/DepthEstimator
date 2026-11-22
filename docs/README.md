@@ -11,9 +11,9 @@ Start with the [project README](../README.md) for what the program does and how 
 | [Disparity tuning guide](tuning-guide.md) | tune the stereo matcher with `DisparityTuner` |
 | [API reference](api-reference.md) | look up classes, methods, arguments, return values and exceptions |
 | [Testing](testing.md) | run the tests, and know which ones work without hardware |
-| [Known problems](problems/README.md) | read the 13 audited problems (8 fixed, 3 partly fixed, 1 mitigated, 1 new), each with evidence, effects and a fix |
+| [Known problems](problems/README.md) | read the 13 audited problems (9 fixed, 3 partly fixed, 1 mitigated), each with evidence, effects and a fix |
 | [Evidence scripts](problems/evidence/README.md) | re-run the synthetic checks that back each problem; each ends with a `VERDICT` line |
 
 If you only read one thing before trusting the numbers on your own camera, read
-[P08 (units)](problems/08-implicit-units.md): an incorrect calibration unit can still give a plausible but wrong distance
-without an error.
+[P08 (units)](problems/08-implicit-units.md): the loader checks the declared unit for new calibrations, but it cannot
+verify that the external calibration producer scaled `T` correctly; legacy files are assumed to use mm with a warning.

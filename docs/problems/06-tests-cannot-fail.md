@@ -10,24 +10,24 @@
 
 The original complaint was that the tests could not fail and pytest found 2 of them. That is fixed:
 
-- Files are named `test_*.py` with `def test_...` functions, so `python -m pytest` collects **34 tests in 7 files**.
+- Files are named `test_*.py` with `def test_...` functions, so `python -m pytest` collects **38 tests in 8 files**.
 - The `try/except` that swallowed assertion failures is gone (the scan finds no `except` in any test file).
 - The depth math has 10 synthetic-disparity tests (`test_depth_estimator.py`); P01 has 4 tests and P02 has 1
   (`test_stereo_dead_band.py`); the camera has 4 fake-capture tests (`test_stereo_camera.py`); and `Configurator.setConfig` has 2.
 
 ## Still open
 
-1. **Only 23 of the 34 tests run in a clean clone** (copy of the tracked files, no camera, no display, no model, no
+1. **Only 27 of the 38 tests run in a clean clone** (copy of the tracked files, no camera, no display, no model, no
    calibration). The result of running them that way (part D of the script):
 
    ```
-   no camera, display, model or calibration needed : 23 passed
+   no camera, display, model or calibration needed : 27 passed
    test_stereo_processor.py (needs calibration+images): 5 failed
    ```
 
    | Group | Tests | Why it can't run elsewhere |
    |---|---|---|
-   | portable | 23 | `test_depth_estimator`, `test_stereo_dead_band`, `test_configurator`, 4 fake-capture camera tests |
+   | portable | 27 | `test_depth_estimator`, `test_stereo_dead_band`, `test_configurator`, `test_stereo_calibration`, 4 fake-capture camera tests |
    | needs the author's files | 5 | `test_stereo_processor.py`: `depth_estimator/matrices/stereo_calib.npz` and `depth_estimator/images/*.png` are git-ignored and referenced by `/home/mansour/...` |
    | needs model + image + window | 2 | `test_object_detector.py`: weights, absolute path, and `test_detect_objects` blocks on `cv2.imshow` until `q` |
    | needs the camera / a display | 4 | `test_camera_open`, `test_frame_capture`, `test_view_feed` (loops until `q`), `test_run` (launches the tuner) |
@@ -36,8 +36,10 @@ The original complaint was that the tests could not fail and pytest found 2 of t
 2. **One test asserts this machine's configuration.** `test_load_camera_config` expects `camera_index == "/dev/video2"` and
    3840x1080; with any other valid config it raises `AssertionError` (it can fail, but for the wrong reason).
 3. **No pytest configuration or markers**, so nothing says which tests are hardware tests or lets CI skip them.
-4. **No pytest regression test for several fixes**: the P03 sentinel (configured or override), the P04 exceptions, and the
-   P08 unit. P03 does have a standalone synthetic evidence script, but it is not part of the pytest suite. This is how P03
+4. **No pytest regression test for several fixes**: the P03 sentinel (configured or override) and the P04 exceptions. The
+   P08 loader contract has hardware-free coverage, but whether an external calibration producer writes a physically correct
+   millimetre scale still needs a known-distance check. P03 does have a standalone synthetic evidence script, but it is not
+   part of the pytest suite. This is how P03
    got "fixed" for the config path and still broke for the override path.
 
 ## Suggested fixes

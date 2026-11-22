@@ -121,7 +121,8 @@ so treat anything closer than `Z_min` as unmeasurable.
 - **Occlusion.** A point visible to the left camera but hidden from the right has no match, and a near object hides a strip
   of background just to its left in the left image. The disparity panel tints an invalid strip that touches the left edge
   ([P01](problems/01-sgbm-dead-band.md)); occlusions elsewhere are simply black.
-- **Units.** Depth is in the unit of the calibration square size, assumed millimetres; the `square_size_mm` stored in the
-  calibration is not applied ([P08](problems/08-implicit-units.md)).
+- **Units.** Baseline and depth are in millimetres when the calibration's `T` is written in millimetres and marked with
+  `translation_unit="mm"`. Legacy files without the marker warn and assume mm. The marker describes `T`; it does not
+  convert it, and `square_size_mm` is descriptive metadata only ([P08](problems/08-implicit-units.md)).
 - **Calibration quality bounds everything.** The reported `rms_stereo` of the calibration is a good first check; a
   poor calibration produces systematic distance errors that no tuning can remove.

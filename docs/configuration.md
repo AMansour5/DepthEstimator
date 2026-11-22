@@ -26,7 +26,7 @@ MJPG at 30 FPS. If it reports another combined size than requested, `StereoCamer
 
 | Key | Meaning |
 |---|---|
-| `calibration_path` | Path to the calibration `.npz` (relative paths resolve against the `depth_estimator` package, [P05](problems/05-not-runnable-from-clean-clone.md)). The file needs the keys listed in [`setup.md`](setup.md), including `square_size_mm` and `checkerboard` |
+| `calibration_path` | Path to the calibration `.npz` (relative paths resolve against the `depth_estimator` package, [P05](problems/05-not-runnable-from-clean-clone.md)). The file needs the core keys listed in [`setup.md`](setup.md); new files must declare `translation_unit: "mm"`. |
 | `process_scale` | Scale applied to the rectified images **before** SGBM. `0.5` means SGBM runs on 960x540. Smaller is faster and less precise; `1.0` disables downscaling |
 | `matcher_params` | The SGBM settings below |
 
@@ -75,4 +75,4 @@ See [Depth estimation](depth-estimation.md) for how these interact.
 | `process_scale` | the scale the disparity was tuned at (the tuner writes both together) |
 | `numDisparities` | the nearest distance you need: `needed = ceil(f_full * process_scale * baseline / Z_min / 16) * 16`; the tuner prints this for `Z_MIN_MM = 500`. Don't go higher than you need: the cost grows with it |
 | `device` | the hardware you are actually running on (`null` is safe everywhere) |
-| `square_size_mm` (calibration file) | the unit the baseline is really in; it is recorded but **not applied**, so the code assumes millimetres ([P08](problems/08-implicit-units.md)) |
+| `translation_unit` (calibration file) | Must be `"mm"` for new files; it declares the unit already used by `T` and is not a conversion. Missing legacy markers warn and assume mm ([P08](problems/08-implicit-units.md)) |

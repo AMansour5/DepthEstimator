@@ -2,12 +2,12 @@
 
 ## Run
 
-From the repository root. A plain `python -m pytest` collects **34 tests in 7 files**, but 11 of them need a camera, a display,
+From the repository root. A plain `python -m pytest` collects **38 tests in 8 files**, but 11 of them need a camera, a display,
 the YOLO weights, or files that exist only on the author's machine (and two of them open windows and wait for `q`). To run
-only the tests that work anywhere (**23 tests, no hardware**):
+only the tests that work anywhere (**27 tests, no hardware**):
 
 ```bash
-python -m pytest -q depth_estimator/tests/test_depth_estimator.py depth_estimator/tests/test_stereo_dead_band.py depth_estimator/tests/test_configurator.py \
+python -m pytest -q depth_estimator/tests/test_depth_estimator.py depth_estimator/tests/test_stereo_dead_band.py depth_estimator/tests/test_configurator.py depth_estimator/tests/test_stereo_calibration.py \
   depth_estimator/tests/test_stereo_camera.py::test_slow_consumer_gets_latest_frame \
   depth_estimator/tests/test_stereo_camera.py::test_frames_are_not_returned_twice \
   depth_estimator/tests/test_stereo_camera.py::test_release_stops_reader_thread \
@@ -15,7 +15,7 @@ python -m pytest -q depth_estimator/tests/test_depth_estimator.py depth_estimato
 ```
 
 The two mismatch regression tests are included via `test_stereo_dead_band.py` and the fake-camera case above. The portable
-subset is 23 tests; the other 11 are marked in the table below. The reasons, and a proposal to mark them so that `pytest`
+subset is 27 tests; the other 11 are marked in the table below. The reasons, and a proposal to mark them so that `pytest`
 skips them by default, are in
 [P06](problems/06-tests-cannot-fail.md).
 
@@ -25,14 +25,15 @@ skips them by default, are in
 |---|---|---|---|
 | `test_depth_estimator.py` | 10 | nothing | the depth maths on synthetic disparity maps (below) |
 | `test_stereo_dead_band.py` | 5 | nothing | `computeDisparity` recovers the left edge and keeps the input's shape, pads **after** resizing and honours an overridden `numDisparities`; `rectifyImages` rejects a wrong-sized right image ([P01](problems/01-sgbm-dead-band.md), [P02](problems/02-frame-size-vs-calibration.md)); the left-edge tint follows the map's validity and is skipped when no column is valid |
+| `test_stereo_calibration.py` | 4 | nothing | legacy and marked calibration schemas, optional metadata, unsupported unit rejection, and no implicit rescaling from `square_size_mm` ([P08](problems/08-implicit-units.md), [P13](problems/13-calibration-schema-unused-required-keys.md)) |
 | `test_configurator.py` | 4 | nothing (`test_load_camera_config` asserts **this machine's** camera config) | `setConfig` creates a missing file, merges untouched keys, and resolves absolute/package-relative artifact paths |
 | `test_stereo_camera.py` | 7 | 3 need a camera and a display (`test_camera_open`, `test_frame_capture`, `test_view_feed`, which loops until `q`); 4 use a fake capture | a reported resolution mismatch is rejected; a slow consumer gets the **latest** frame, no frame is returned twice, and `release()` stops the reader thread ([P02](problems/02-frame-size-vs-calibration.md), [P11](problems/11-possible-camera-latency.md)) |
 | `test_stereo_processor.py` | 5 | the real calibration and sample images at absolute `/home/mansour/...` paths | construction, rectification, focal length, baseline and disparity, each only asserting `is not None` |
 | `test_object_detector.py` | 2 | the YOLO weights, a sample image at an absolute path, and a window (`test_detect_objects` waits for `q` if anything is detected) | the model loads and detection returns something (`is not None`) |
 | `test_disparity_tuner.py` | 1 | a camera and a display | launches the interactive tuner; it has no assertion |
 
-So the real regression value is in the first four rows. **Not covered by a pytest regression test**: the P03 sentinel clamp
-(for the configured value or an override), the P04 exceptions, the P08 unit,
+So the real regression value is in the first five rows. **Not covered by a pytest regression test**: the P03 sentinel clamp
+(for the configured value or an override), the P04 exceptions, the external calibration producer's physical scale,
 `Orchestrator.processFrame`, and the failure paths of `Configurator` ([P06](problems/06-tests-cannot-fail.md)). P03 is
 demonstrated by [`p03_min_disparity.py`](problems/evidence/p03_min_disparity.py), which exercises real SGBM on synthetic
 stereo pairs and verifies both configured and overridden values. `depth_estimator/tests` is excluded from the installed package.
@@ -71,6 +72,6 @@ A fake processor needs `getFocalLength()`, `getBaseline()`, `process_scale`, `ma
 ## Writing a test that needs a calibration
 
 The real calibration is git-ignored. `docs/problems/evidence/common.py` has `synthetic_calibration(path, ...)`, which writes a
-file in the current format (including the required `square_size_mm` and `checkerboard`), and `make_processor(matcher_params)`,
+file in the current format (including `translation_unit="mm"` and optional descriptive metadata), and `make_processor(matcher_params)`,
 which builds a real `StereoProcessor` for disparity-only tests without any file. Use them (or copy them into `depth_estimator/tests`)
 instead of the author's files.

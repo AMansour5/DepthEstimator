@@ -23,11 +23,13 @@ project's values: set them in `depth_estimator/config/stereo_camera.yaml` ([P02]
 
 `StereoProcessor(processor_cfg: dict)`: needs `calibration_path`, `process_scale`, `matcher_params`. The constructor
 builds the SGBM matcher, loads the calibration and computes the rectification maps once. Raises `RuntimeError` if the
-calibration file is missing or invalid (including a file without `square_size_mm` / `checkerboard`,
-[P13](problems/13-calibration-schema-unused-required-keys.md)), the matcher settings are wrong, or rectification fails.
+calibration file is missing or invalid, an explicit `translation_unit` is unsupported, the matcher settings are wrong,
+or rectification fails. Files without a unit marker load with a `RuntimeWarning` and assume legacy translations are in
+millimetres ([P13](problems/13-calibration-schema-unused-required-keys.md)).
 
 Public attributes: `process_scale`, `matcher_params`, `matcher`, the calibration (`K1 D1 K2 D2 R T`, `calib_img_size`,
-`rms_stereo`, `square_size_mm`, `checkerboard_dims`), the rectification maps (`map1x map1y map2x map2y`) and `Q`.
+`rms_stereo`, `translation_unit`, optional `square_size_mm`, optional `checkerboard_dims`), the rectification maps
+(`map1x map1y map2x map2y`) and `Q`.
 
 | Method | Returns / does |
 |---|---|
@@ -35,7 +37,7 @@ Public attributes: `process_scale`, `matcher_params`, `matcher`, the calibration
 | `computeDisparity(left_img, right_img, overrides=None)` | `float32` disparity map in pixels at the process scale (input is **BGR rectified**; it converts to grey, downscales with `INTER_AREA`, pads both images on the left by `numDisparities`, matches, and crops the padding, so the map has the size of the downscaled left image with **no artificial dead band**, [P01](problems/01-sgbm-dead-band.md)). Unmatched pixels are `-1`, including when `minDisparity` is overridden. `overrides` may hold any `matcher_params` key and/or `"process_scale"` to use instead of the configured ones (the tuner uses this; see [P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
 | `buildMatcher(overrides=None)` | a `cv2.StereoSGBM` built from `matcher_params` with `overrides` taking precedence. `mode` is one of `SGBM`, `HH`, `SGBM_3WAY` (default if omitted), `HH4`; `P1 = 8*blockSize^2`, `P2 = 32*blockSize^2`. Raises `RuntimeError` on an invalid mode or missing key |
 | `getFocalLength()` | focal length in pixels at **full resolution**: `abs(Q[2,3])` |
-| `getBaseline()` | baseline: `abs(1 / Q[3,2])`, in the unit of the calibration square size; `square_size_mm` is not used to convert it ([P08](problems/08-implicit-units.md)) |
+| `getBaseline()` | baseline: `abs(1 / Q[3,2])`, in the unit of `T`; this is millimetres when the file declares `"mm"` or is a legacy file assumed to be mm. No conversion is applied ([P08](problems/08-implicit-units.md)) |
 
 Class attribute `_SGBM_MODES` maps the four mode names to the OpenCV constants.
 
@@ -66,7 +68,7 @@ All three take a message and expose it as `.message`.
 |---|---|
 | `depth_cfg` | `roi_shrink` (0.5), `min_valid_frac` (0.2), `max_rel_spread` (0.15) |
 | `focal_length` | pixels at full resolution (`StereoProcessor.getFocalLength()`) |
-| `baseline` | in calibration units, mm assumed (`StereoProcessor.getBaseline()`) |
+| `baseline` | millimetres for marked files; legacy files are assumed to be mm (`StereoProcessor.getBaseline()`) |
 | `scale` | the `process_scale` the disparity map was computed at |
 
 Raises `ValueError` for `roi_shrink` outside `(0, 1]` or non-positive `focal_length`, `baseline`, `scale`.

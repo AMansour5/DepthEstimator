@@ -26,7 +26,7 @@ Both are git-ignored (`*.npz`, `*.pt`), so a fresh clone does not contain them
 ### 1. Stereo calibration: `depth_estimator/matrices/stereo_calib.npz`
 
 Produced by your capture and calibration scripts (they are not part of this repository). `StereoProcessor`
-expects a NumPy `.npz` with these keys, **all required** (extra keys such as `E`, `F`, `rms_left`, `rms_right` are ignored):
+expects a NumPy `.npz` with the core keys below. Extra keys such as `E`, `F`, `rms_left`, `rms_right` are ignored:
 
 | Key | Meaning |
 |---|---|
@@ -35,21 +35,28 @@ expects a NumPy `.npz` with these keys, **all required** (extra keys such as `E`
 | `R`, `T` | rotation and translation from the left to the right camera |
 | `img_size` | `(width, height)` of **one** eye's image, e.g. `(1920, 1080)` |
 | `rms_stereo` | stereo calibration RMS reprojection error (float; only read, not used in calculations) |
-| `square_size_mm` | the checkerboard square size you entered (float). Required, **but only recorded**: nothing uses it ([P13](problems/13-calibration-schema-unused-required-keys.md)) |
-| `checkerboard` | inner-corner counts `(columns, rows)` of the board (two ints). Required, only recorded |
+| `translation_unit` | **Required for new files**; the unit used for the translation vector `T`. Write `"mm"` only. `T` must already be expressed in millimetres; other explicit units are rejected |
+| `square_size_mm` | Optional descriptive metadata: the physical checkerboard square size in millimetres (float). It does not rescale `T` |
+| `checkerboard` | Optional descriptive metadata: inner-corner counts `(columns, rows)` of the board (two positive ints) |
 
-A calibration file from before `square_size_mm` and `checkerboard` were added fails to load with
-`RuntimeError: Failed to load calibration file: 'square_size_mm is not a file in the archive'`
-([P13](problems/13-calibration-schema-unused-required-keys.md)); add the two keys with `numpy.savez`.
+Files without `translation_unit` are treated as legacy files: they still load, but emit a warning and assume that `T` is in
+millimetres. This also applies to files that have `square_size_mm` and `checkerboard` but lack the unit marker
+([P13](problems/13-calibration-schema-unused-required-keys.md)). Verify old calibrations against a known distance before
+relying on them.
+
+The unit marker is a contract, not a conversion. OpenCV's translation `T` is scaled by the object-point coordinates used by
+the calibration script. That script must build those coordinates in millimetres, write the resulting `T` in millimetres,
+and set `translation_unit="mm"`. A wrong unit cannot be inferred or repaired from `square_size_mm` alone; update the
+external calibration script accordingly ([P08](problems/08-implicit-units.md)).
 
 Two things that are easy to get wrong:
 
 - **`img_size` must equal the size of each half of the camera frame** at runtime. A mismatch in either eye raises
   `DifferentImageSizeError`; if the camera reports a different resolution than requested, `StereoCamera.open()` raises
   `RuntimeError` ([P02](problems/02-frame-size-vs-calibration.md)).
-- **Units.** Depth comes out in the unit you used for the checkerboard square size when calibrating. The code
-  assumes **millimetres**, and `square_size_mm` does not convert anything. If you entered centimetres, every depth is wrong by
-  a constant factor and nothing warns you ([P08](problems/08-implicit-units.md)).
+- **Units.** Baseline and depth are in millimetres when `T` follows the marked-mm contract. A legacy calibration with no
+  `translation_unit` loads with a warning and is assumed to use millimetres. The marker does not convert `T`
+  ([P08](problems/08-implicit-units.md)).
 
 The calibration is read at start-up and the rectification maps are built once.
 

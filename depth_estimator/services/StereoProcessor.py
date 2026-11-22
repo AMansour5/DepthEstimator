@@ -1,8 +1,9 @@
 import os
 import cv2
+import warnings
 import numpy as np
-from depth_estimator.exceptions.DifferentImageSizeError import DifferentImageSizeError
 from depth_estimator.utils.Configurator import Configurator
+from depth_estimator.exceptions.DifferentImageSizeError import DifferentImageSizeError
 
 class StereoProcessor:
 
@@ -24,6 +25,9 @@ class StereoProcessor:
         self.D2 = None
         self.R = None
         self.T = None
+        self.translation_unit = None
+        self.square_size_mm = None
+        self.checkerboard_dims = None
         self.calib_img_size = None
         self.rms_stereo = None
         self.map1x = None
@@ -65,8 +69,35 @@ class StereoProcessor:
             self.D2 = data["D2"]
             self.R = data["R"]
             self.T = data["T"]
-            self.square_size_mm = float(data["square_size_mm"])
-            self.checkerboard_dims = tuple(int(x) for x in data["checkerboard"])
+
+            if "translation_unit" in data:
+                translation_unit = str(data["translation_unit"].item()).strip().lower()
+                if translation_unit != "mm":
+                    raise ValueError(
+                        f"Unsupported translation_unit {translation_unit!r}; "
+                        "calibration translations must be in millimetres."
+                    )
+            else:
+                translation_unit = "mm"
+                warnings.warn(
+                    "Calibration file is missing 'translation_unit'; assuming legacy translations are in "
+                    "millimetres. Verify the calibration scale before relying on depth.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+            self.translation_unit = translation_unit
+
+            if "square_size_mm" in data:
+                self.square_size_mm = float(data["square_size_mm"])
+                if not np.isfinite(self.square_size_mm) or self.square_size_mm <= 0:
+                    raise ValueError("'square_size_mm' must be a finite positive number.")
+            if "checkerboard" in data:
+                checkerboard = np.asarray(data["checkerboard"])
+                if (checkerboard.shape != (2,) or not np.all(np.isfinite(checkerboard))
+                        or np.any(checkerboard <= 0) or np.any(checkerboard != np.floor(checkerboard))):
+                    raise ValueError("'checkerboard' must contain two positive corner counts.")
+                self.checkerboard_dims = tuple(int(x) for x in checkerboard)
+
             self.calib_img_size = tuple(int(x) for x in data["img_size"])
             self.rms_stereo = float(data["rms_stereo"])
         except Exception as e:
@@ -145,4 +176,3 @@ class StereoProcessor:
         disparity = raw.astype(np.float32) / 16.0
         disparity[disparity < params["minDisparity"]] = -1.0   # SGBM's 'no match' is minDisparity - 1
         return disparity
-

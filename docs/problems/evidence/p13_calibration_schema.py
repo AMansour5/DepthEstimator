@@ -1,12 +1,6 @@
-"""P13: the calibration loader requires two keys that nothing uses, and the unit they describe is still assumed.
-
-StereoProcessor.__loadCalibration reads `square_size_mm` and `checkerboard` (added after the original schema), stores them
-and never uses them again. Consequences checked here:
-  A) a calibration file made before they existed no longer loads,
-  B) the stored unit does not influence the baseline, so a file made with squares entered in cm still reads as mm (P08),
-  C) nothing else in depth_estimator/ reads the two attributes.
-"""
-import re, tempfile
+"""P13: legacy calibration metadata is optional and T's unit is explicit in the current schema."""
+import tempfile
+import warnings
 from common import *
 from depth_estimator.services.StereoProcessor import StereoProcessor
 
@@ -19,42 +13,38 @@ def load(path):
 
 with tempfile.TemporaryDirectory() as tmp:
     print("A) loading calibration files")
-    new, old = f"{tmp}/new.npz", f"{tmp}/old.npz"
+    new, old, unknown = f"{tmp}/new.npz", f"{tmp}/old.npz", f"{tmp}/unknown.npz"
     synthetic_calibration(new)
-    keys = {k: np.load(new)[k] for k in np.load(new).files if k not in ("square_size_mm", "checkerboard")}
+    with np.load(new) as data:
+        keys = {k: data[k] for k in data.files
+                if k not in ("square_size_mm", "checkerboard", "translation_unit")}
     np.savez(old, **keys)
-    rejected = False
-    for label, path in (("with square_size_mm + checkerboard", new), ("original schema (without them)", old)):
-        try:
-            load(path)
-            print(f"   {label:<38}: loads")
-        except RuntimeError as e:
-            rejected = True
-            print(f"   {label:<38}: RuntimeError: {e}")
+    synthetic_calibration(unknown, translation_unit="cm")
+    marked = load(new)
+    print(f"   current schema with translation_unit=mm: loads, baseline={marked.getBaseline():.1f} mm")
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        legacy = load(old)
+    legacy_warned = any("assuming legacy translations are in millimetres" in str(w.message) for w in caught)
+    print(f"   original schema (without metadata)     : loads with assumed-mm warning={legacy_warned}")
+    try:
+        load(unknown)
+        unsupported_rejected = False
+    except RuntimeError as e:
+        unsupported_rejected = "Unsupported translation_unit 'cm'" in str(e)
+        print(f"   translation_unit=cm                    : rejected clearly={unsupported_rejected}")
 
-    print("\nB) does the stored unit change the baseline? (same translation T, different square_size_mm)")
+    print("\nB) does square_size_mm rescale T? (same T, different descriptive metadata)")
     baselines = {}
     for size in (30.0, 3.0):
         p = f"{tmp}/size{size}.npz"
         synthetic_calibration(p, baseline=60.0, square_size_mm=size)
         baselines[size] = load(p).getBaseline()
         print(f"   square_size_mm={size:>5}: getBaseline() = {baselines[size]:.1f}")
-    unit_ignored = baselines[30.0] == baselines[3.0]
+    same_t_same_baseline = baselines[30.0] == baselines[3.0]
+    print(f"   same T yields same baseline (expected): {same_t_same_baseline}")
 
-print("\nC) uses of the two attributes in depth_estimator/ (outside tests)")
-uses = []
-for f in (ROOT / "depth_estimator").rglob("*.py"):
-    if "tests" in f.parts:
-        continue
-    for i, line in enumerate(f.read_text().splitlines(), 1):
-        if re.search(r"square_size_mm|checkerboard_dims|\[\"checkerboard\"\]", line):
-            uses.append(f"{f.relative_to(ROOT)}:{i}: {line.strip()}")
-print("   " + "\n   ".join(uses))
-only_assigned = all(re.match(r"self\.\w+ = ", u.split(": ", 1)[1]) for u in uses)
-
-if rejected or unit_ignored or only_assigned:
-    verdict("STILL PRESENT",
-            f"old calibration files are rejected: {rejected}; stored unit ignored by getBaseline: {unit_ignored}; "
-            f"keys only assigned, never read: {only_assigned}")
+if legacy_warned and legacy.translation_unit == "mm" and marked.translation_unit == "mm" and unsupported_rejected and same_t_same_baseline:
+    verdict("FIXED", "legacy metadata is optional; new files declare T in mm; unsupported units are rejected")
 else:
-    verdict("FIXED", "optional keys, and the unit is applied")
+    verdict("STILL PRESENT", "the calibration schema or unit contract did not behave as expected")

@@ -70,7 +70,7 @@ The leftmost `d` columns, where `d` is an object's disparity, lie outside the ri
 **Depth result** (from `DepthEstimator`, one per detection, or `None`)
 
 ```python
-{"z_mm": 750.0,        # distance, in the unit of the calibration square size (assumed mm)
+{"z_mm": 750.0,        # distance in mm when calibration T is marked "mm" (legacy assumed mm)
  "disparity": 40.0,    # median disparity used (downscaled pixels)
  "valid_frac": 1.0,    # share of sampled pixels that had a valid disparity
  "rel_spread": 0.0,    # (75th - 25th percentile) / median

@@ -49,6 +49,7 @@ checks = {
     "P03 minDisparity sentinel": None,
     "P02 frame size": None,
     "P04 detector errors": None,
+    "P08 calibration unit contract": "test_stereo_calibration.py",
     "P09 Configurator": "test_configurator.py",
     "P11 camera latency": "test_stereo_camera.py",
 }
@@ -86,5 +87,5 @@ with tempfile.TemporaryDirectory() as tmp:
 print("   (camera, GUI and model tests are not run here: they would open a window or block)")
 
 verdict("PARTLY FIXED",
-        "tests are named test_*.py, assertions are not swallowed, and 23 tests run on a clean clone; but the other 11 need "
+        "tests are named test_*.py, assertions are not swallowed, and 27 tests run on a clean clone; but the other 11 need "
         "the author's calibration/images, a camera, a display or the model, and the P03/P04 fixes have no regression test")

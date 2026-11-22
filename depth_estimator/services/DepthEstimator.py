@@ -18,8 +18,8 @@ class DepthEstimator:
                           (see depth_estimator/config/depth_estimator.yaml).
         :param focal_length: focal length in pixels at FULL resolution
                              (StereoProcessor.getFocalLength()).
-        :param baseline: distance between the two cameras, in the units of the
-                         calibration target square size, mm in this project
+        :param baseline: distance between the two cameras in millimetres when
+                         the calibration's translation_unit is "mm"
                          (StereoProcessor.getBaseline()). Depth comes out in the
                          same unit.
         :param scale: process scale the disparity map was computed at

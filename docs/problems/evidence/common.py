@@ -66,16 +66,17 @@ def make_scene(objects=(), bg_d=10, seed=5):
 
 
 def synthetic_calibration(path, img_size=(1920, 1080), f=1000.0, baseline=60.0,
-                          square_size_mm=30.0, checkerboard=(8, 5)):
-    """Write a calibration .npz in the format StereoProcessor expects (illustrative numbers).
+                          square_size_mm=30.0, checkerboard=(8, 5), translation_unit="mm"):
+    """Write a calibration .npz in the current schema (illustrative numbers).
 
-    square_size_mm and checkerboard are REQUIRED by StereoProcessor.__loadCalibration even though
-    nothing uses them yet (see P08).
+    T's translation unit must be explicitly declared. square_size_mm and checkerboard are optional
+    descriptive metadata; square_size_mm does not rescale T.
     """
     K = np.array([[f, 0, img_size[0] / 2], [0, f, img_size[1] / 2], [0, 0, 1]])
     np.savez(path, K1=K, D1=np.zeros(5), K2=K, D2=np.zeros(5), R=np.eye(3),
              T=np.array([[-baseline], [0], [0]]), img_size=np.array(img_size), rms_stereo=0.3,
-             square_size_mm=square_size_mm, checkerboard=np.array(checkerboard))
+             square_size_mm=square_size_mm, checkerboard=np.array(checkerboard),
+             translation_unit=translation_unit)
 
 
 def bgr(gray):
