@@ -3,8 +3,8 @@ import time
 import cv2
 import numpy as np
 import pytest
-from src.utils.Configurator import Configurator
-from src.services.StereoCamera import StereoCamera
+from depth_estimator.utils.Configurator import Configurator
+from depth_estimator.services.StereoCamera import StereoCamera
 
 def test_camera_open():
     """Test if the stereo camera can be opened successfully."""

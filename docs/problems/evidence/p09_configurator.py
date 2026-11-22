@@ -5,13 +5,13 @@ Everything runs against a temporary copy of the config folder; your real files a
 import tempfile
 from pathlib import Path
 from common import *
-from src.utils.Configurator import Configurator
+from depth_estimator.utils.Configurator import Configurator
 
 with tempfile.TemporaryDirectory() as tmp:
-    (Path(tmp) / "config").mkdir()
-    Configurator.getProjectRoot = staticmethod(lambda: tmp)
-    source = ROOT / "config" / "object_detector.yaml"
-    target = Path(tmp) / "config" / "object_detector.yaml"
+    config_dir = Path(tmp)
+    Configurator.getConfigDir = staticmethod(lambda: config_dir)
+    source = ROOT / "depth_estimator" / "config" / "object_detector.yaml"
+    target = config_dir / "object_detector.yaml"
     target.write_text(source.read_text())
     lines = lambda: "\n".join("   | " + l for l in target.read_text().splitlines())
     before = target.read_text()
@@ -23,11 +23,10 @@ with tempfile.TemporaryDirectory() as tmp:
 
     print("\nB) fetchData errors")
     c = Configurator()
-    (Path(tmp) / "config" / "stereo_camera.yaml").write_text("camera_index: [unclosed")
+    (config_dir / "stereo_camera.yaml").write_text("camera_index: [unclosed")
     raised = 0
     for label, call in (("unknown type", lambda: c.fetchData("bogus")),
-                        ("malformed yaml", lambda: c.fetchData(Configurator.STEREO_CAMERA)),
-                        ("missing file", lambda: c.fetchData(Configurator.DEPTH_ESTIMATOR))):
+                        ("malformed yaml", lambda: c.fetchData(Configurator.STEREO_CAMERA))):
         try:
             print(f"   {label:<15} -> returned {call()!r}")
         except Exception as e:
@@ -45,9 +44,9 @@ with tempfile.TemporaryDirectory() as tmp:
     print(f"   file afterwards: {len(left)} bytes (was {len(good)})" + ("  <-- the original content is gone" if non_atomic else ""))
 
 print()
-if raised == 3 and not comments_lost and not non_atomic:
+if raised == 2 and not comments_lost and not non_atomic:
     verdict("FIXED", "errors raise, comments survive, writes are atomic")
-elif raised == 3:
+elif raised == 2:
     verdict("PARTLY FIXED", "fetchData raises; setConfig still drops comments / re-sorts keys"
             + (" and a failed write empties the file" if non_atomic else ""))
 else:

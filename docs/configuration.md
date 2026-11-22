@@ -1,6 +1,6 @@
 # Configuration reference
 
-All configuration lives in `config/*.yaml`. `Configurator` locates the folder from the project root, so it is
+All configuration lives in `depth_estimator/config/*.yaml`. `Configurator` locates the folder from the project root, so it is
 found regardless of the working directory (file paths *inside* the YAML are a different matter; see
 [P05](problems/05-not-runnable-from-clean-clone.md)).
 
@@ -50,7 +50,7 @@ The tuner's `d` key writes `process_scale` and the SGBM values back into this fi
 
 | Key | Current | Meaning |
 |---|---|---|
-| `model_path` | `src/models/yolov8n.pt` | YOLO weights (relative to the working directory; a bad path raises `YoloModelNotFound` at start-up) |
+| `model_path` | `depth_estimator/models/yolov8n.pt` | YOLO weights (relative to the working directory; a bad path raises `YoloModelNotFound` at start-up) |
 | `conf_threshold` | `0.5` | Minimum confidence to keep a detection |
 | `classes` | `null` | List of COCO class ids to keep (e.g. `[0, 39, 41]` = person, bottle, cup); `null` = all |
 | `device` | `null` | Where YOLO runs. **`null` lets ultralytics choose (GPU if available, else CPU).** An explicit value such as `0`, `cuda:0` or `cpu` forces it; one the machine can't provide raises `DetectionError` on the first frame ([P07](problems/07-hardcoded-cuda-device.md)) |

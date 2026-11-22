@@ -1,63 +1,47 @@
-# P12: A non-editable install (`pip install .`) cannot run: `config/` is not shipped and `ultralytics` is not declared
+# P12: Regular installs could not find configuration or used a generic package name
 
 | | |
 |---|---|
 | **Severity** | Medium |
-| **Status** | **New**, reproduced (`evidence/p12_packaging.py` prints `VERDICT STILL PRESENT`). An editable install (`pip install -e .`) works and is the supported path |
-| **Where** | `pyproject.toml` (`[project].dependencies`, `[tool.setuptools.packages.find]`, `[project.scripts]`); `src/utils/Configurator.py:14-20` (`getProjectRoot`); `src/services/ObjectDetector.py:1` (`from ultralytics import YOLO`) |
+| **Status** | **Fixed**. The project uses the `depth_estimator` package, configuration is packaged inside it, and relative artifacts resolve from the package location. `evidence/p12_packaging.py` prints `VERDICT FIXED` |
+| **Where** | `pyproject.toml` (dependencies, package discovery, package data, and console scripts); `depth_estimator/config/`; `depth_estimator/utils/Configurator.py`; `depth_estimator/services/StereoProcessor.py`; `depth_estimator/services/ObjectDetector.py` |
 
-## Summary
+## What was wrong
 
-`pyproject.toml` defines two console scripts, `estimate-depth` and `tune-disparity`, which are the natural way to run the
-program. Two things stop them working from a regular (non-editable) install:
+The original top-level package was named `src`, so it could collide with another project. Setuptools also did not package the
+repository-level `config/` directory, and `Configurator.getProjectRoot()` required that checkout layout. A regular wheel
+install therefore could not find YAML configuration, while the editable install appeared to work only because it found the
+repository folders.
 
-1. **`config/` is not part of the package.** `[tool.setuptools.packages.find]` includes only `src*`, and there is no
-   `package-data`/`data-files`/`MANIFEST.in`. A built wheel contains `src/` and nothing else. `Configurator.getProjectRoot()`
-   walks up from its own file looking for a folder that has *both* `config/` and `src/`; in `site-packages` there is only
-   `src/`, so it raises:
+`ultralytics` was imported but was also missing from the declared dependencies in the original package metadata.
 
-   ```
-   FileNotFoundError: Could not find project root with /config and /src directories
-   ```
+## Fix
 
-2. **`ultralytics` is imported but not declared.** `ObjectDetector` imports it at module level, and `Orchestrator` imports
-   `ObjectDetector`, so `estimate-depth` fails with `ModuleNotFoundError: No module named 'ultralytics'` on an environment
-   that was set up only from `pyproject.toml`. (It is also what pulls in PyTorch, so it is the heaviest dependency, not an
-   afterthought.) The script's part C lists it as the only import missing from `[project].dependencies`.
+- Renamed `src/` to `depth_estimator/` and updated internal imports and both console entry points.
+- Moved all four YAML files into `depth_estimator/config/`; the repository no longer keeps a duplicate top-level `config/`
+  directory.
+- Declared `depth_estimator.config` package data in `pyproject.toml`, so wheels contain `depth_estimator/config/*.yaml`.
+- Updated `Configurator` to read packaged resources, honor `DEPTH_ESTIMATOR_CONFIG_DIR`, and copy packaged defaults to a
+  writable per-user or overridden configuration directory for `setConfig`.
+- Updated calibration and model path resolution so relative paths point into the package rather than the process working
+  directory.
+- Kept `ultralytics` declared in `pyproject.toml`.
 
-Also noteworthy: the package that gets installed is named **`src`**, a generic top-level name that can collide with another
-project's `src` in the same environment.
+## Verification
 
-## What was checked
+The P12 evidence script verifies package discovery, package data, package-resource loading, the absence of a duplicate
+top-level config directory, and dependency declarations. A wheel build also contains:
 
-- Part A: the setuptools configuration ships no data and no `config/`.
-- Part B: a copy of `src/` without `config/` next to it (the `site-packages` layout) makes `getProjectRoot()` raise.
-- Part C: a scan of the imports in `src/` (excluding tests) against `[project].dependencies`.
-- Verified separately: building a wheel from the tracked files succeeds and contains only `src/` (24 files, tests excluded); an
-  editable install into a fresh virtual environment finds the repository's `config/` from any directory and creates both
-  console scripts.
+```
+depth_estimator/config/depth_estimator.yaml
+depth_estimator/config/object_detector.yaml
+depth_estimator/config/stereo_camera.yaml
+depth_estimator/config/stereo_processor.yaml
+```
 
-Not checked: running `estimate-depth` itself on a machine without `ultralytics` (the dependency scan is static).
+Run:
 
-## Effects
-
-- Anyone who installs the project the usual way gets scripts that fail immediately, with an error that doesn't mention
-  packaging.
-- Even once `config/` is found, the relative `calibration_path` and `model_path` still depend on the working directory
-  ([P05](05-not-runnable-from-clean-clone.md)), so the console scripts only work from the repository root today.
-
-## Suggested fixes
-
-1. Add `ultralytics` to `[project].dependencies` (or to an extra, `pip install .[detect]`, and make `ObjectDetector` fail with a
-   message that names the extra).
-2. Pick one of: (a) state clearly in the README that the project is run from a checkout (`pip install -e .`) and drop the
-   claim that console scripts work otherwise (done in the docs); (b) make `Configurator` find its config through an environment
-   variable or a per-user directory when no `config/` sits next to `src/`, and ship defaults as package data; (c) move
-   `config/` into the package.
-3. Consider renaming the top-level package from `src` to something unique (for example `depth_estimator`); it is a mechanical but
-   wide change, so do it separately.
-
-## How to verify
-
-`python3 docs/problems/evidence/p12_packaging.py` ends with `VERDICT FIXED` once `ultralytics` is declared and `config/` is
-reachable from an installed copy.
+```bash
+python3 docs/problems/evidence/p12_packaging.py
+python3 -m pip wheel --no-deps --wheel-dir /tmp/depth-estimator-wheel .
+```

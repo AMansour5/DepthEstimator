@@ -1,7 +1,7 @@
 # Evidence scripts
 
 Each script checks one documented problem against **the current code**, on **synthetic data**, using your real classes
-from `src/` and your real values from `config/*.yaml`. No camera, real calibration file or YOLO weights are needed.
+from `depth_estimator/` and your real values from `depth_estimator/config/*.yaml`. No camera, real calibration file or YOLO weights are needed.
 Every script ends with a line `VERDICT FIXED | PARTLY FIXED | STILL PRESENT`, so you can re-run them after a change and see
 what moved.
 
@@ -21,12 +21,12 @@ for f in docs/problems/evidence/p*.py; do python3 "$f" | tail -2; done     # all
 | `p06_tests_cannot_fail.py` | [P06](../06-tests-cannot-fail.md) | what pytest collects, which tests need hardware or this machine, which problems have a regression test, a clean-clone run | PARTLY FIXED |
 | `p09_configurator.py` | [P09](../09-configurator-error-handling-and-rewrites.md) | `fetchData` raises; `setConfig` still drops comments and a failed write empties the file | PARTLY FIXED |
 | `p10_interpolation.py` | [P10](../10-duplicated-disparity-code.md) | source scan for duplicated disparity code; the old `INTER_AREA` vs `INTER_LINEAR` measurement | FIXED |
-| `p12_packaging.py` | [P12](../12-non-editable-install-broken.md) | `config/` is not shipped, `getProjectRoot()` fails, `ultralytics` is undeclared | STILL PRESENT |
+| `p12_packaging.py` | [P12](../12-non-editable-install-broken.md) | the renamed package ships all YAML config resources and declares third-party imports | FIXED |
 | `p13_calibration_schema.py` | [P13](../13-calibration-schema-unused-required-keys.md) | old calibration files are rejected; the stored unit is ignored | STILL PRESENT |
 
 P07 (needs ultralytics/PyTorch), P08 (needs your calibration; partly covered by `p13`) and P11 (needs your camera) have no
 dedicated script; their files say how to check. P11's reader-thread behaviour is covered by tests in
-`src/tests/test_stereo_camera.py`.
+`depth_estimator/tests/test_stereo_camera.py`.
 
 `common.py` holds the shared helpers: a synthetic stereo-scene generator with known disparities, an SGBM builder that mirrors
 `StereoProcessor`, `make_processor` (a real `StereoProcessor` without a calibration file), a synthetic calibration writer

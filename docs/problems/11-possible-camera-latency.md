@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | Low |
 | **Status** | **Mitigated** in `d403a39` (reader thread, verified with fake-capture tests). Whether your backend queues frames is still **unverified without your camera** |
-| **Where** | `src/services/StereoCamera.py:34-54` (`__startReader`, `__readLoop`), `:56-76` (`__setupCamera`), `:78-97` (`getFrames`), `:108-115` (`release`); `src/tests/test_stereo_camera.py:92-116` |
+| **Where** | `depth_estimator/services/StereoCamera.py:34-54` (`__startReader`, `__readLoop`), `:56-76` (`__setupCamera`), `:78-97` (`getFrames`), `:108-115` (`release`); `depth_estimator/tests/test_stereo_camera.py:92-116` |
 
 ## Summary
 

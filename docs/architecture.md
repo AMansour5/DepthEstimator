@@ -38,16 +38,16 @@ system (SGBM computes disparity for the left image), so a left-image box indexes
 
 | Component | File | Responsibility | Knows about |
 |---|---|---|---|
-| `StereoCamera` | `src/services/StereoCamera.py` | open the camera, keep the newest frame (reader thread), split it | OpenCV only |
-| `StereoProcessor` | `src/services/StereoProcessor.py` | load calibration, rectify, compute disparity (pad, match, crop), build the SGBM matcher, expose focal length and baseline | calibration file, SGBM settings |
-| `ObjectDetector` | `src/services/ObjectDetector.py` | run YOLO, return plain dictionaries; raise on failure | ultralytics |
-| `DepthEstimator` | `src/services/DepthEstimator.py` | turn *(disparity map, boxes)* into depths | nothing else: pure math |
-| `Orchestrator` | `src/services/Orchestrator.py` | build the components from config, run the loop, thread, time, draw | all of the above |
-| `Configurator` | `src/utils/Configurator.py` | read and update `config/*.yaml` | file locations |
-| `DisparityVisualizer` | `src/utils/DisparityVisualizer.py` | colourise the disparity map, tint the invalid left-edge strip, draw outlined text | nothing else |
-| `DisparityTuner` | `src/tuners/DisparityTuner.py` | interactive SGBM tuning with live preview; calls `StereoProcessor.computeDisparity` with its slider values as overrides | `StereoProcessor`, `StereoCamera` |
-| exceptions | `src/exceptions/` | `YoloModelNotFound`, `DetectionError`, `DifferentImageSizeError` | |
-| `ICamera` | `src/interfaces/ICamera.py` | camera interface (`zope.interface`) | |
+| `StereoCamera` | `depth_estimator/services/StereoCamera.py` | open the camera, keep the newest frame (reader thread), split it | OpenCV only |
+| `StereoProcessor` | `depth_estimator/services/StereoProcessor.py` | load calibration, rectify, compute disparity (pad, match, crop), build the SGBM matcher, expose focal length and baseline | calibration file, SGBM settings |
+| `ObjectDetector` | `depth_estimator/services/ObjectDetector.py` | run YOLO, return plain dictionaries; raise on failure | ultralytics |
+| `DepthEstimator` | `depth_estimator/services/DepthEstimator.py` | turn *(disparity map, boxes)* into depths | nothing else: pure math |
+| `Orchestrator` | `depth_estimator/services/Orchestrator.py` | build the components from config, run the loop, thread, time, draw | all of the above |
+| `Configurator` | `depth_estimator/utils/Configurator.py` | read and update `depth_estimator/config/*.yaml` | file locations |
+| `DisparityVisualizer` | `depth_estimator/utils/DisparityVisualizer.py` | colourise the disparity map, tint the invalid left-edge strip, draw outlined text | nothing else |
+| `DisparityTuner` | `depth_estimator/tuners/DisparityTuner.py` | interactive SGBM tuning with live preview; calls `StereoProcessor.computeDisparity` with its slider values as overrides | `StereoProcessor`, `StereoCamera` |
+| exceptions | `depth_estimator/exceptions/` | `YoloModelNotFound`, `DetectionError`, `DifferentImageSizeError` | |
+| `ICamera` | `depth_estimator/interfaces/ICamera.py` | camera interface (`zope.interface`) | |
 
 Design rule: **`DepthEstimator` has no dependency on the camera, the calibration file or YOLO.** Everything it needs is
 passed to its constructor, so it can be tested with a synthetic disparity map

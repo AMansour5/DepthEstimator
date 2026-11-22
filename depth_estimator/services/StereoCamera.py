@@ -1,8 +1,8 @@
 import cv2
 import threading
 from zope.interface import implementer
-from src.interfaces.ICamera import ICamera
-from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
+from depth_estimator.interfaces.ICamera import ICamera
+from depth_estimator.exceptions.DifferentImageSizeError import DifferentImageSizeError
 
 @implementer(ICamera)
 class StereoCamera:

@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | Low |
 | **Status** | **Partly fixed**. `evidence/p09_configurator.py` prints `VERDICT PARTLY FIXED` |
-| **Where** | `src/utils/Configurator.py:42-53` (`fetchData`), `:55-88` (`setConfig`, `open(..., 'w')` at `:78`, `safe_dump` at `:79`); caller `src/tuners/DisparityTuner.py:107-117` (`__writeParams`, the `d` key) |
+| **Where** | `depth_estimator/utils/Configurator.py:42-53` (`fetchData`), `:55-88` (`setConfig`, `open(..., 'w')` at `:78`, `safe_dump` at `:79`); caller `depth_estimator/tuners/DisparityTuner.py:107-117` (`__writeParams`, the `d` key) |
 
 ## Resolved (`e645de6`)
 

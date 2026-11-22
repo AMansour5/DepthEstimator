@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | Low (before the fix) |
 | **Status** | **Fixed** in `084b056`. Re-checked: `evidence/p10_interpolation.py` part A scans the source and prints `VERDICT FIXED` |
-| **Where** | `src/services/StereoProcessor.py:101-146` (`buildMatcher`, `computeDisparity` with `overrides`); `src/utils/DisparityVisualizer.py:12-18` (`colorizeDisparity`); callers `src/tuners/DisparityTuner.py:153,158` and `src/services/Orchestrator.py:63,94` |
+| **Where** | `depth_estimator/services/StereoProcessor.py:101-146` (`buildMatcher`, `computeDisparity` with `overrides`); `depth_estimator/utils/DisparityVisualizer.py:12-18` (`colorizeDisparity`); callers `depth_estimator/tuners/DisparityTuner.py:153,158` and `depth_estimator/services/Orchestrator.py:63,94` |
 
 ## Resolution
 

@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | Medium |
 | **Status** | **Partly fixed**. Labels are consistent now; the stored unit is read but ignored (reproduced by `evidence/p13_calibration_schema.py`, part B). The original arithmetic is **source-read** and needs your calibration to see real numbers |
-| **Where** | `src/services/StereoProcessor.py:66` (`square_size_mm` loaded, never used), `:83-90` (`getBaseline`); `src/services/DepthEstimator.py` (result key `z_mm`); `src/services/Orchestrator.py:109` (`z_mm / 1000` shown as metres); `src/tuners/DisparityTuner.py:75-77` (prints `z_mm / 10` as cm) |
+| **Where** | `depth_estimator/services/StereoProcessor.py:66` (`square_size_mm` loaded, never used), `:83-90` (`getBaseline`); `depth_estimator/services/DepthEstimator.py` (result key `z_mm`); `depth_estimator/services/Orchestrator.py:109` (`z_mm / 1000` shown as metres); `depth_estimator/tuners/DisparityTuner.py:75-77` (prints `z_mm / 10` as cm) |
 
 ## Summary
 
@@ -21,7 +21,7 @@ comes out in the units of the calibration target's square size.
 
 ## What is still open
 
-**The recorded unit is not used.** Nothing in `src/` reads `square_size_mm` after loading it, and `getBaseline()` ignores it. Two
+**The recorded unit is not used.** Nothing in `depth_estimator/` reads `square_size_mm` after loading it, and `getBaseline()` ignores it. Two
 calibrations with identical translation and `square_size_mm` = 30 and 3 return the same baseline:
 
 ```

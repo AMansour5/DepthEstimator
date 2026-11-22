@@ -7,7 +7,7 @@ import re
 from common import *
 
 read = lambda p: (ROOT / p).read_text()
-tuner, proc, orch = read("src/tuners/DisparityTuner.py"), read("src/services/StereoProcessor.py"), read("src/services/Orchestrator.py")
+tuner, proc, orch = read("depth_estimator/tuners/DisparityTuner.py"), read("depth_estimator/services/StereoProcessor.py"), read("depth_estimator/services/Orchestrator.py")
 checks = {
     "tuner builds its own StereoSGBM": "StereoSGBM_create" in tuner,
     "tuner defines its own colorizer": bool(re.search(r"def\s+\w*colori[sz]e", tuner, re.I)),

@@ -1,6 +1,6 @@
 import cv2
-from src.utils.Configurator import Configurator
-from src.services.ObjectDetector import ObjectDetector
+from depth_estimator.utils.Configurator import Configurator
+from depth_estimator.services.ObjectDetector import ObjectDetector
 
 def test_load_model():
     configurator = Configurator()
@@ -13,7 +13,7 @@ def test_detect_objects():
     object_detector_cfg = configurator.fetchData(configurator.OBJECT_DETECTOR)
     object_detector = ObjectDetector(object_detector_cfg)
     # Replace 'sample_image' with an actual image for testing
-    sample_image = cv2.imread("/home/mansour/Desktop/DepthEstimator/src/images/porsche.png")  # Replace with the path to an actual image for testing
+    sample_image = cv2.imread("/home/mansour/Desktop/DepthEstimator/depth_estimator/images/porsche.png")  # Replace with the path to an actual image for testing
     detected_objects = object_detector.detect(sample_image)
     print(f"Detected objects: {detected_objects}")
     __draw_and_show(sample_image, detected_objects)

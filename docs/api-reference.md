@@ -3,13 +3,13 @@
 Signatures are as in the repository (`main`). Methods named `__like_this` are private and not listed.
 Unless noted otherwise, images are OpenCV BGR `numpy` arrays.
 
-## `StereoCamera`: `src/services/StereoCamera.py`
+## `StereoCamera`: `depth_estimator/services/StereoCamera.py`
 
 Implements `ICamera` through `zope.interface`.
 
 `StereoCamera(camera_cfg: dict)`: keys `camera_index` (default `0`), `combined_width` (`1280`), `combined_height` (`480`),
 `preview_width` (`640`), `frame_timeout` (`2.0`, seconds). Nothing is opened until `open()`. The defaults are not the
-project's values: set them in `config/stereo_camera.yaml` ([P02](problems/02-frame-size-vs-calibration.md)).
+project's values: set them in `depth_estimator/config/stereo_camera.yaml` ([P02](problems/02-frame-size-vs-calibration.md)).
 
 | Method | Returns / does |
 |---|---|
@@ -19,7 +19,7 @@ project's values: set them in `config/stereo_camera.yaml` ([P02](problems/02-fra
 | `release()` | stops the reader thread (waits up to 2 s), then releases the capture |
 | `resize_for_preview(img)` | `img` resized to `preview_width`, keeping the aspect ratio |
 
-## `StereoProcessor`: `src/services/StereoProcessor.py`
+## `StereoProcessor`: `depth_estimator/services/StereoProcessor.py`
 
 `StereoProcessor(processor_cfg: dict)`: needs `calibration_path`, `process_scale`, `matcher_params`. The constructor
 builds the SGBM matcher, loads the calibration and computes the rectification maps once. Raises `RuntimeError` if the
@@ -39,7 +39,7 @@ Public attributes: `process_scale`, `matcher_params`, `matcher`, the calibration
 
 Class attribute `_SGBM_MODES` maps the four mode names to the OpenCV constants.
 
-## `ObjectDetector`: `src/services/ObjectDetector.py`
+## `ObjectDetector`: `depth_estimator/services/ObjectDetector.py`
 
 `ObjectDetector(detector_cfg: dict)`: keys `model_path`, `conf_threshold` (0.5), `classes` (`None`), `device` (`None`),
 `yolo_imgsz` (640). Loads the model; **raises `YoloModelNotFound`** (with the path and the original error) if loading fails.
@@ -48,7 +48,7 @@ Class attribute `_SGBM_MODES` maps the four mode names to the OpenCV constants.
 nothing was found. **Any failure raises `DetectionError`**; it is never turned into `[]` or `None`
 ([P04](problems/04-silent-detector-failure.md)).
 
-## Exceptions: `src/exceptions/`
+## Exceptions: `depth_estimator/exceptions/`
 
 | Exception | Raised by | Meaning |
 |---|---|---|
@@ -58,7 +58,7 @@ nothing was found. **Any failure raises `DetectionError`**; it is never turned i
 
 All three take a message and expose it as `.message`.
 
-## `DepthEstimator`: `src/services/DepthEstimator.py`
+## `DepthEstimator`: `depth_estimator/services/DepthEstimator.py`
 
 `DepthEstimator(depth_cfg: dict, focal_length: float, baseline: float, scale: float = 1.0)`
 
@@ -80,10 +80,10 @@ A pixel counts as valid when its disparity is `> 0`. The depth dict keys are lis
 [Architecture](architecture.md#data-that-moves-between-components); the method is explained in
 [Depth estimation](depth-estimation.md).
 
-## `Orchestrator`: `src/services/Orchestrator.py`
+## `Orchestrator`: `depth_estimator/services/Orchestrator.py`
 
 `Orchestrator(camera=None, processor=None, detector=None, depth_estimator=None)`: any component you omit is built from
-`config/*.yaml`; passing your own (or fakes) makes the class testable without hardware. A missing config file raises
+`depth_estimator/config/*.yaml`; passing your own (or fakes) makes the class testable without hardware. A missing config file raises
 `FileNotFoundError` and malformed YAML `RuntimeError` (both from `Configurator`); an empty file also raises `RuntimeError`.
 
 Class constants: `WINDOW_NAME`, `DISPLAY_WIDTH = 720` (width of each display panel).
@@ -94,20 +94,21 @@ Class constants: `WINDOW_NAME`, `DISPLAY_WIDTH = 720` (width of each display pan
 | `run()` | Opens the camera (raises `RuntimeError` if it can't), loops until `q`, Ctrl+C, or a failed read, then calls `close()`. An exception from `processFrame` ends the loop, after `close()` |
 | `close()` | shuts down the worker, releases the camera, closes windows |
 
-Run it with `python -m src.services.Orchestrator` or, after `pip install -e .`, `estimate-depth`. `main()` prints an
+Run it with `python -m depth_estimator.services.Orchestrator` or, after `pip install -e .`, `estimate-depth`. `main()` prints an
 error with its traceback and exits with status 1 on any exception.
 
-## `Configurator`: `src/utils/Configurator.py`
+## `Configurator`: `depth_estimator/utils/Configurator.py`
 
 Constants: `STEREO_CAMERA`, `OBJECT_DETECTOR`, `STEREO_PROCESSOR`, `DEPTH_ESTIMATOR`.
 
 | Method | Returns / does |
 |---|---|
-| `getProjectRoot()` (static) | path of the folder that contains both `config/` and `src/`; raises `FileNotFoundError` if not found (which is what an installed, non-editable copy does, [P12](problems/12-non-editable-install-broken.md)) |
-| `fetchData(data_type)` | the parsed YAML as a `dict` (`None` for an empty file). **Raises**: `TypeError` for an unknown type, `FileNotFoundError` for a missing file, `RuntimeError` for malformed YAML |
-| `setConfig(data_type, new_data)` | merges `new_data` into the file's **top-level keys** and rewrites the file (comments are lost, and a failed write leaves it empty, [P09](problems/09-configurator-error-handling-and-rewrites.md)) |
+| `getProjectRoot()` (static) | package directory containing `depth_estimator/config/` |
+| `getConfigDir()` (static) | mutable config directory: `DEPTH_ESTIMATOR_CONFIG_DIR`, otherwise `$XDG_CONFIG_HOME/depth-estimator` or `~/.config/depth-estimator` |
+| `fetchData(data_type)` | the parsed YAML as a `dict`. Reads a mutable override when present, otherwise loads packaged resources ([P12](problems/12-non-editable-install-broken.md)). **Raises** `TypeError` for unknown types and `RuntimeError` for malformed YAML |
+| `setConfig(data_type, new_data)` | merges `new_data` into the writable per-user or overridden config file (comments are lost, and a failed write leaves it empty, [P09](problems/09-configurator-error-handling-and-rewrites.md)) |
 
-## `DisparityVisualizer`: `src/utils/DisparityVisualizer.py`
+## `DisparityVisualizer`: `depth_estimator/utils/DisparityVisualizer.py`
 
 Static helpers shared by the orchestrator and the tuner.
 
@@ -117,12 +118,12 @@ Static helpers shared by the orchestrator and the tuner.
 | `colorizeDisparity(disparity, num_disparities)` | `COLORMAP_TURBO` image; pixels with disparity `<= 0` are black |
 | `highlightLeftInvalidBand(colored, disparity)` | a copy of `colored` with the contiguous invalid strip at the left edge tinted dark red and its right boundary drawn as a red line. The boundary is the first column with more than 50% valid pixels; if there is none, or the strip has zero width, `colored` is returned unchanged ([P01](problems/01-sgbm-dead-band.md)) |
 
-## `DisparityTuner`: `src/tuners/DisparityTuner.py`
+## `DisparityTuner`: `depth_estimator/tuners/DisparityTuner.py`
 
 `DisparityTuner()`: builds its own `StereoProcessor` and `StereoCamera` from config. `tuneDisparity()` runs the
 interactive loop (see the [tuning guide](tuning-guide.md)). Class constant `Z_MIN_MM = 500.0`. The module has a `main()`:
-run it with `python -m src.tuners.DisparityTuner` or `tune-disparity`.
+run it with `python -m depth_estimator.tuners.DisparityTuner` or `tune-disparity`.
 
-## `ICamera`: `src/interfaces/ICamera.py`
+## `ICamera`: `depth_estimator/interfaces/ICamera.py`
 
 `zope.interface` interface describing `open()`, `getFrames()`, `getCapture()` and `release()`.

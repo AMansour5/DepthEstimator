@@ -1,4 +1,4 @@
-from src.tuners.DisparityTuner import DisparityTuner
+from depth_estimator.tuners.DisparityTuner import DisparityTuner
 
 def test_run():
     tuner = DisparityTuner()

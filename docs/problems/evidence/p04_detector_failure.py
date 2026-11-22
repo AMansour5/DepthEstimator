@@ -25,10 +25,10 @@ def YOLO(path):
 stub.YOLO = YOLO
 sys.modules["ultralytics"] = stub
 
-from src.exceptions.DetectionError import DetectionError
-from src.exceptions.YoloModelNotFound import YoloModelNotFound
-from src.services.ObjectDetector import ObjectDetector
-from src.services.Orchestrator import Orchestrator
+from depth_estimator.exceptions.DetectionError import DetectionError
+from depth_estimator.exceptions.YoloModelNotFound import YoloModelNotFound
+from depth_estimator.services.ObjectDetector import ObjectDetector
+from depth_estimator.services.Orchestrator import Orchestrator
 
 
 class FakeProcessor:
@@ -47,7 +47,7 @@ class FakeCamera:
 
 
 frame = np.zeros((1080, 1920, 3), np.uint8)
-cfg = dict(model_path="src/models/yolov8n.pt", device=None)
+cfg = dict(model_path="depth_estimator/models/yolov8n.pt", device=None)
 results = {}
 
 print("A) ObjectDetector with a model that fails to load")
@@ -81,8 +81,8 @@ except DetectionError:
 orch.close()
 
 print("\nD) leftovers in the source")
-src = (ROOT / "src/services/Orchestrator.py").read_text()
-stale = "None on error" in src or "or []" in src.split("def processFrame", 1)[1].split("def __render", 1)[0]
+source = (ROOT / "depth_estimator/services/Orchestrator.py").read_text()
+stale = "None on error" in source or "or []" in source.split("def processFrame", 1)[1].split("def __render", 1)[0]
 print("   Orchestrator.processFrame still has a stale comment or an `or []` fallback:", stale)
 print("   transient errors are not tolerated: one bad frame stops the demo (no 'DETECTOR ERROR' banner, no retry)")
 

@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | Medium (before the fix) |
 | **Status** | **Fixed** in `db60e9b`. The analysis of the failing path remains **source-read**: it was not executed on a machine without a GPU |
-| **Where** | `config/object_detector.yaml:4` (`device: null`); `src/services/ObjectDetector.py:10,27` (passes `device=self.device` to the model call) |
+| **Where** | `depth_estimator/config/object_detector.yaml:4` (`device: null`); `depth_estimator/services/ObjectDetector.py:10,27` (passes `device=self.device` to the model call) |
 
 ## Resolution
 

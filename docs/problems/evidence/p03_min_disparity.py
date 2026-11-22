@@ -8,7 +8,7 @@ Part A: minDisparity comes from the config (what the Orchestrator does).
 Part B: minDisparity comes from `overrides` (what DisparityTuner does with its slider).
 """
 from common import *
-from src.services.DepthEstimator import DepthEstimator
+from depth_estimator.services.DepthEstimator import DepthEstimator
 
 mp = load_stereo_processor_cfg()["matcher_params"]
 TRUE_D = 40

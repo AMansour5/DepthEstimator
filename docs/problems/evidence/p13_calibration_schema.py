@@ -4,11 +4,11 @@ StereoProcessor.__loadCalibration reads `square_size_mm` and `checkerboard` (add
 and never uses them again. Consequences checked here:
   A) a calibration file made before they existed no longer loads,
   B) the stored unit does not influence the baseline, so a file made with squares entered in cm still reads as mm (P08),
-  C) nothing else in src/ reads the two attributes.
+  C) nothing else in depth_estimator/ reads the two attributes.
 """
 import re, tempfile
 from common import *
-from src.services.StereoProcessor import StereoProcessor
+from depth_estimator.services.StereoProcessor import StereoProcessor
 
 cfg = load_stereo_processor_cfg()
 
@@ -41,9 +41,9 @@ with tempfile.TemporaryDirectory() as tmp:
         print(f"   square_size_mm={size:>5}: getBaseline() = {baselines[size]:.1f}")
     unit_ignored = baselines[30.0] == baselines[3.0]
 
-print("\nC) uses of the two attributes in src/ (outside tests)")
+print("\nC) uses of the two attributes in depth_estimator/ (outside tests)")
 uses = []
-for f in (ROOT / "src").rglob("*.py"):
+for f in (ROOT / "depth_estimator").rglob("*.py"):
     if "tests" in f.parts:
         continue
     for i, line in enumerate(f.read_text().splitlines(), 1):

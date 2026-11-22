@@ -35,18 +35,17 @@ Details: [Architecture](docs/architecture.md), [Depth estimation](docs/depth-est
 ## Quick start
 
 ```bash
-# 1. install from the repository root (an editable install: it needs config/ next to src/)
+# 1. install from the repository root
 pip install -e .
-pip install ultralytics                  # YOLO and PyTorch; not declared in pyproject.toml yet (P12)
 
 # 2. provide the two git-ignored files (see docs/setup.md for how)
-#      src/matrices/stereo_calib.npz    your stereo calibration
-#      src/models/yolov8n.pt            YOLO weights
+#      depth_estimator/matrices/stereo_calib.npz    your stereo calibration
+#      depth_estimator/models/yolov8n.pt            YOLO weights
 
-# 3. check config/*.yaml (camera device and resolution; device stays null so YOLO uses a GPU only if there is one)
+# 3. check depth_estimator/config/*.yaml (camera device and resolution; device stays null so YOLO uses a GPU only if there is one)
 
 # 4. run from the repository root
-python -m src.services.Orchestrator      # press q in the window to quit (or: estimate-depth)
+python -m depth_estimator.services.Orchestrator      # press q in the window to quit (or: estimate-depth)
 ```
 
 Full instructions, the calibration file format, and a first-run checklist: [docs/setup.md](docs/setup.md).
@@ -55,32 +54,32 @@ Full instructions, the calibration file format, and a first-run checklist: [docs
 
 ```
 DepthEstimator/
-├── config/                    YAML settings: camera, stereo processor, detector, depth estimator
 ├── docs/                      documentation
 │   └── problems/              one file per audited problem, plus evidence/ scripts that check each one
 ├── pyproject.toml             dependencies and the estimate-depth / tune-disparity commands
-└── src/
+└── depth_estimator/
+    ├── config/                YAML settings: camera, stereo processor, detector, depth estimator
     ├── exceptions/            YoloModelNotFound, DetectionError, DifferentImageSizeError
     ├── interfaces/ICamera.py  camera interface
     ├── services/              StereoCamera, StereoProcessor, ObjectDetector, DepthEstimator, Orchestrator
     ├── tuners/DisparityTuner.py   interactive SGBM tuning
-    ├── utils/                 Configurator (reads and updates config/*.yaml), DisparityVisualizer
+    ├── utils/                 Configurator (reads and updates depth_estimator/config/*.yaml), DisparityVisualizer
     └── tests/
 ```
 
-Not tracked by git (you provide them): `src/matrices/stereo_calib.npz`, `src/models/*.pt`, the sample images the tests use.
+Not tracked by git (you provide them): `depth_estimator/matrices/stereo_calib.npz`, `depth_estimator/models/*.pt`, the sample images the tests use.
 
 ## Configuration at a glance
 
 | File | Controls | Most important keys |
 |---|---|---|
-| `config/stereo_camera.yaml` | the camera | `camera_index`, `combined_width`, `combined_height` |
-| `config/stereo_processor.yaml` | rectification and SGBM | `calibration_path`, `process_scale`, `matcher_params.numDisparities` |
-| `config/object_detector.yaml` | YOLO | `model_path`, `conf_threshold`, `device` |
-| `config/depth_estimator.yaml` | how a box becomes one distance | `roi_shrink`, `min_valid_frac`, `max_rel_spread` |
+| `depth_estimator/config/stereo_camera.yaml` | the camera | `camera_index`, `combined_width`, `combined_height` |
+| `depth_estimator/config/stereo_processor.yaml` | rectification and SGBM | `calibration_path`, `process_scale`, `matcher_params.numDisparities` |
+| `depth_estimator/config/object_detector.yaml` | YOLO | `model_path`, `conf_threshold`, `device` |
+| `depth_estimator/config/depth_estimator.yaml` | how a box becomes one distance | `roi_shrink`, `min_valid_frac`, `max_rel_spread` |
 
 Every key is explained in [docs/configuration.md](docs/configuration.md). To tune the stereo matcher interactively
-use the [tuning guide](docs/tuning-guide.md) (`python -m src.tuners.DisparityTuner`).
+use the [tuning guide](docs/tuning-guide.md) (`python -m depth_estimator.tuners.DisparityTuner`).
 
 ## Documentation
 
@@ -97,16 +96,13 @@ use the [tuning guide](docs/tuning-guide.md) (`python -m src.tuners.DisparityTun
 
 ## Known problems
 
-All problems were checked against the current code (audit at commit `c39cf63`, with P03 re-verified since). **5 are fixed**
-(P01 the unmeasurable left band, P03 invalid disparity sentinels, P04 silent detector failure, P07 hard-coded CUDA, P10
-duplicated disparity code), **5 are partly fixed**, **1 is
-mitigated** and **2 are new**. The ones most likely to affect your numbers or your first run:
+All problems were checked against the current code. **7 are fixed** (P01, P02, P03, P04, P07, P10, P12), **3 are partly
+fixed**, **1 is mitigated**, and **1 is new**. The ones most likely to affect your numbers or your first run:
 
 | | Problem | Effect |
 |---|---|---|
 | [P08](docs/problems/08-implicit-units.md) | The unit of depth is assumed to be mm; `square_size_mm` is recorded but unused | a constant-factor error if the calibration used another unit |
-| [P12](docs/problems/12-non-editable-install-broken.md) | `pip install .` ships no `config/`, and `ultralytics` is not declared | the console scripts only work from an editable install |
-| [P05](docs/problems/05-not-runnable-from-clean-clone.md) / [P13](docs/problems/13-calibration-schema-unused-required-keys.md) | Paths depend on the working directory; calibration files need two unused keys | a clean clone, or an older calibration, fails to start |
+| [P05](docs/problems/05-not-runnable-from-clean-clone.md) / [P13](docs/problems/13-calibration-schema-unused-required-keys.md) | Calibration/model artifacts are not tracked; calibration files need two unused keys | a clean clone, or an older calibration, fails to start |
 
 The full index, with severity and verification status, is [docs/problems/README.md](docs/problems/README.md). Each reproducible
 problem has a script in [docs/problems/evidence/](docs/problems/evidence/README.md) that prints a `VERDICT` line.
@@ -114,12 +110,12 @@ problem has a script in [docs/problems/evidence/](docs/problems/evidence/README.
 ## Testing
 
 ```bash
-python -m pytest -q src/tests/test_depth_estimator.py src/tests/test_stereo_dead_band.py src/tests/test_configurator.py \
-  src/tests/test_stereo_camera.py::test_slow_consumer_gets_latest_frame \
-  src/tests/test_stereo_camera.py::test_frames_are_not_returned_twice \
-  src/tests/test_stereo_camera.py::test_release_stops_reader_thread \
-  src/tests/test_stereo_camera.py::test_camera_rejects_negotiated_resolution_mismatch  # 22 tests, no hardware needed
+python -m pytest -q depth_estimator/tests/test_depth_estimator.py depth_estimator/tests/test_stereo_dead_band.py depth_estimator/tests/test_configurator.py \
+  depth_estimator/tests/test_stereo_camera.py::test_slow_consumer_gets_latest_frame \
+  depth_estimator/tests/test_stereo_camera.py::test_frames_are_not_returned_twice \
+  depth_estimator/tests/test_stereo_camera.py::test_release_stops_reader_thread \
+  depth_estimator/tests/test_stereo_camera.py::test_camera_rejects_negotiated_resolution_mismatch  # 23 tests, no hardware needed
 ```
 
-A plain `python -m pytest` collects 33 tests; 11 need a camera, a display, the model or the author's files. See
+A plain `python -m pytest` collects 34 tests; 11 need a camera, a display, the model or the author's files. See
 [docs/testing.md](docs/testing.md).

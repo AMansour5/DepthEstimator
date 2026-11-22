@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | High when present: remapping an incorrectly sized frame can produce a mostly-black image and invalid depths |
 | **Status** | **Fixed**. The processor checks both eye images and the camera rejects a reported resolution mismatch; `evidence/p02_frame_size.py` prints `VERDICT FIXED` |
-| **Where** | `src/services/StereoProcessor.py:41-48` (`rectifyImages`); `src/services/StereoCamera.py:57-76` (requested vs. reported size); `src/exceptions/DifferentImageSizeError.py` |
+| **Where** | `depth_estimator/services/StereoProcessor.py:41-48` (`rectifyImages`); `depth_estimator/services/StereoCamera.py:57-76` (requested vs. reported size); `depth_estimator/exceptions/DifferentImageSizeError.py` |
 
 ## What happened
 
@@ -24,5 +24,5 @@ inputs rectified; left-size, right-size and both-eye mismatches raised `Differen
 camera reporting 1280x720 when 3840x1080 was requested. The script ended with `VERDICT FIXED`.
 
 The code defaults (`1280x480` combined) are not the project's configured dimensions (`3840x1080`). Keep
-`config/stereo_camera.yaml` aligned with the calibration and device: if a device accepts the configured size but the
+`depth_estimator/config/stereo_camera.yaml` aligned with the calibration and device: if a device accepts the configured size but the
 per-eye frame still differs from `img_size`, rectification now fails explicitly instead of producing a misleading image.

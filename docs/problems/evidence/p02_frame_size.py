@@ -5,9 +5,9 @@ Part B: StereoCamera when the device negotiates another resolution (fake capture
 """
 import tempfile
 from common import *
-from src.services.StereoCamera import StereoCamera
-from src.services.StereoProcessor import StereoProcessor
-from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
+from depth_estimator.services.StereoCamera import StereoCamera
+from depth_estimator.services.StereoProcessor import StereoProcessor
+from depth_estimator.exceptions.DifferentImageSizeError import DifferentImageSizeError
 
 with tempfile.TemporaryDirectory() as tmp:
     calib = f"{tmp}/stereo_calib.npz"

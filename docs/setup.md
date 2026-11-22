@@ -6,26 +6,24 @@
   `/dev/video2`, i.e. Linux/V4L2, delivering 3840x1080 MJPG). A GPU is recommended for YOLO but not required: with
   `device: null` ultralytics falls back to the CPU ([P07](problems/07-hardcoded-cuda-device.md)).
 - **Python:** 3.9 or newer (`requires-python` in `pyproject.toml`; use whatever your PyTorch install supports).
-- **Packages:** `pyproject.toml` declares `opencv-python`, `numpy`, `PyYAML` and `zope.interface`, but **not `ultralytics`**
-  ([P12](problems/12-non-editable-install-broken.md)). From the repository root:
+- **Packages:** `pyproject.toml` declares `opencv-python`, `numpy`, `PyYAML`, `zope.interface`, and `ultralytics`.
+  From the repository root:
 
   ```bash
   pip install -e .                 # the project and its declared dependencies, plus the estimate-depth / tune-disparity commands
-  pip install ultralytics          # YOLO (installs PyTorch); not declared yet
   pip install -e ".[dev]"          # optional: pytest
   ```
 
-  Use an **editable** install (`-e`): a regular `pip install .` does not ship `config/`, and the program can't find its
-  settings ([P12](problems/12-non-editable-install-broken.md)). Use `opencv-python`, not `opencv-python-headless`: the
+  Use `opencv-python`, not `opencv-python-headless`: the
   program opens windows with `cv2.imshow`. There is no `requirements.txt`; `pyproject.toml` is the list.
 
 ## The two files you must provide
 
 Both are git-ignored (`*.npz`, `*.pt`), so a fresh clone does not contain them
-([P05](problems/05-not-runnable-from-clean-clone.md)). The folders `src/matrices/` and `src/models/` exist (a tracked
+([P05](problems/05-not-runnable-from-clean-clone.md)). The folders `depth_estimator/matrices/` and `depth_estimator/models/` exist (a tracked
 `.gitkeep` each).
 
-### 1. Stereo calibration: `src/matrices/stereo_calib.npz`
+### 1. Stereo calibration: `depth_estimator/matrices/stereo_calib.npz`
 
 Produced by your capture and calibration scripts (they are not part of this repository). `StereoProcessor`
 expects a NumPy `.npz` with these keys, **all required** (extra keys such as `E`, `F`, `rms_left`, `rms_right` are ignored):
@@ -55,24 +53,24 @@ Two things that are easy to get wrong:
 
 The calibration is read at start-up and the rectification maps are built once.
 
-### 2. YOLO weights: `src/models/yolov8n.pt`
+### 2. YOLO weights: `depth_estimator/models/yolov8n.pt`
 
-The `model_path` in `config/object_detector.yaml`. Any ultralytics detection model works (`yolov8s.pt` is more
+The `model_path` in `depth_estimator/config/object_detector.yaml`. Any ultralytics detection model works (`yolov8s.pt` is more
 accurate and slower). One way to obtain the nano model:
 
 ```bash
 python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"   # downloads yolov8n.pt into the current folder
-mkdir -p src/models && mv yolov8n.pt src/models/
+mkdir -p depth_estimator/models && mv yolov8n.pt depth_estimator/models/
 ```
 
 ## Run from the project root
 
 Both `calibration_path` and `model_path` are **relative paths**, so start every command from the repository root
-(the folder that contains `config/` and `src/`) ([P05](problems/05-not-runnable-from-clean-clone.md)):
+(the folder that contains `depth_estimator/config/` and `depth_estimator/`) ([P05](problems/05-not-runnable-from-clean-clone.md)):
 
 ```bash
-python -m src.services.Orchestrator       # the live demo; press q in the window to quit   (or: estimate-depth)
-python -m src.tuners.DisparityTuner       # interactive SGBM tuning (see tuning-guide.md)  (or: tune-disparity)
+python -m depth_estimator.services.Orchestrator       # the live demo; press q in the window to quit   (or: estimate-depth)
+python -m depth_estimator.tuners.DisparityTuner       # interactive SGBM tuning (see tuning-guide.md)  (or: tune-disparity)
 python -m pytest -q                       # the tests (see testing.md: some need a camera, a display or the author's files)
 ```
 

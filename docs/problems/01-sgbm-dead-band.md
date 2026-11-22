@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | High (before the fix) |
 | **Status** | **Fixed** in `c39cf63`. Re-checked: `evidence/p01_dead_band.py` prints `VERDICT FIXED` |
-| **Where** | `src/services/StereoProcessor.py:125-146` (`computeDisparity`, the padding is at `:138-142`); `config/stereo_processor.yaml` (`numDisparities: 272`, `process_scale: 0.5`); `src/utils/DisparityVisualizer.py:21-38` (`highlightLeftInvalidBand`) |
+| **Where** | `depth_estimator/services/StereoProcessor.py:125-146` (`computeDisparity`, the padding is at `:138-142`); `depth_estimator/config/stereo_processor.yaml` (`numDisparities: 272`, `process_scale: 0.5`); `depth_estimator/utils/DisparityVisualizer.py:21-38` (`highlightLeftInvalidBand`) |
 
 ## Resolution
 
@@ -12,7 +12,7 @@
 (`cv2.BORDER_REPLICATE`), runs SGBM, and crops the same number of columns off the result, so the map keeps the
 size and alignment of the left image. On the synthetic scene the first valid column went from **272 to 4** and an
 object that used to show "no depth" is measured correctly (750 mm). The runtime panel and `DisparityTuner` tint the
-invalid strip at the left edge (`highlightLeftInvalidBand`). Regression tests: `src/tests/test_stereo_dead_band.py`.
+invalid strip at the left edge (`highlightLeftInvalidBand`). Regression tests: `depth_estimator/tests/test_stereo_dead_band.py`.
 
 What it costs (measured on the real 1920x1080 sample pair, `numDisparities: 272`, `process_scale: 0.5`): SGBM alone about
 46 ms, `computeDisparity` including resize, padding and crop about 56 ms. The matcher sees an image `numDisparities`
@@ -87,5 +87,5 @@ StereoProcessor.computeDisparity, numDisparities=272 (after the fix)
 ## How to verify
 
 `python3 docs/problems/evidence/p01_dead_band.py` (part C: first valid column near 0, both objects measured) and
-`python3 -m pytest -q src/tests/test_stereo_dead_band.py`. In `DisparityTuner`, raise `numDisp x16`: the black/tinted strip on
+`python3 -m pytest -q depth_estimator/tests/test_stereo_dead_band.py`. In `DisparityTuner`, raise `numDisp x16`: the black/tinted strip on
 the left should no longer grow with it.

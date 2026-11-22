@@ -1,11 +1,11 @@
-"""P12: a non-editable install (pip install .) does not work: config/ is not shipped and ultralytics is not declared.
+"""P12: verify that a regular install packages depth_estimator/config/ and declares all third-party imports.
 
 Offline and static: nothing is built or downloaded.
 Part A: which top-level folders does the setuptools configuration ship?
-Part B: what does Configurator.getProjectRoot() do when only src/ exists (the site-packages layout)?
-Part C: third-party imports in src/ vs the declared dependencies.
+Part B: what does Configurator.getProjectRoot() do when only depth_estimator/ exists (the site-packages layout)?
+Part C: third-party imports in depth_estimator/ vs the declared dependencies.
 """
-import ast, shutil, subprocess, sys, tempfile
+import ast, os, sys, tempfile
 from common import *
 
 try:
@@ -18,37 +18,45 @@ st = pyproject.get("tool", {}).get("setuptools", {})
 
 print("A) what pyproject.toml ships")
 print("   packages.find:", st.get("packages", {}).get("find"))
-print("   package-data / data-files / include-package-data:", {k: st.get(k) for k in ("package-data", "data-files", "include-package-data")})
-ships_config = any(k in st for k in ("package-data", "data-files")) or (ROOT / "MANIFEST.in").exists()
-print("   -> config/*.yaml shipped:", ships_config, "| top-level package installed under the generic name 'src'")
+print("   package-data:", st.get("package-data"))
+ships_config = (
+    "depth_estimator.config" in st.get("package-data", {})
+    and all((ROOT / "depth_estimator" / "config" / f"{name}.yaml").is_file()
+            for name in ("stereo_camera", "stereo_processor", "object_detector", "depth_estimator"))
+)
+print("   -> depth_estimator/config/*.yaml packaged:", ships_config,
+      "| top-level package: depth_estimator")
+print("   -> repository-level config/ duplicate exists:", (ROOT / "config").exists())
 
-print("\nB) Configurator.getProjectRoot() when only src/ is present (what site-packages looks like)")
+print("\nB) Configurator.fetchData() with packaged resources")
 broken = False
-with tempfile.TemporaryDirectory() as tmp:
-    shutil.copytree(ROOT / "src", f"{tmp}/site-packages/src",
-                    ignore=shutil.ignore_patterns("tests", "images", "models", "matrices", "__pycache__"))
-    r = subprocess.run([sys.executable, "-c",
-                        "from src.utils.Configurator import Configurator; print(Configurator.getProjectRoot())"],
-                       cwd=f"{tmp}/site-packages", capture_output=True, text=True)
-    broken = r.returncode != 0
-    print("   ", (r.stderr.strip().splitlines() or ["OK " + r.stdout.strip()])[-1])
+try:
+    with tempfile.TemporaryDirectory() as tmp:
+        os.environ["DEPTH_ESTIMATOR_CONFIG_DIR"] = tmp
+        from depth_estimator.utils.Configurator import Configurator
+        config = Configurator().fetchData(Configurator.STEREO_CAMERA)
+        print("   packaged stereo_camera.yaml loaded:", bool(config))
+except Exception as exc:
+    broken = True
+    print("   ", exc)
 
-print("\nC) third-party imports in src/ (excluding tests) vs [project].dependencies")
+print("\nC) third-party imports in depth_estimator/ (excluding tests) vs [project].dependencies")
 declared = {d.split(">")[0].split("<")[0].split("=")[0].strip().lower().replace("_", "-") for d in pyproject["project"]["dependencies"]}
 dist = {"cv2": "opencv-python", "yaml": "pyyaml", "zope": "zope.interface"}
 imported = set()
-for f in (ROOT / "src").rglob("*.py"):
+for f in (ROOT / "depth_estimator").rglob("*.py"):
     if "tests" in f.parts:
         continue
     for node in ast.walk(ast.parse(f.read_text())):
         mods = [node.module] if isinstance(node, ast.ImportFrom) and node.module else \
                [a.name for a in node.names] if isinstance(node, ast.Import) else []
         imported |= {m.split(".")[0] for m in mods}
-third = sorted(m for m in imported if m not in sys.stdlib_module_names and m != "src")
+third = sorted(m for m in imported if m not in sys.stdlib_module_names and m != "depth_estimator")
 missing = [dist.get(m, m) for m in third if dist.get(m, m).lower() not in declared]
 print("   imported:", third)
 print("   declared:", sorted(declared))
 print("   imported but not declared:", missing or "none")
 
-verdict("STILL PRESENT" if (broken or missing) else "FIXED",
-        f"config/ is not installed (getProjectRoot {'raises' if broken else 'works'}); undeclared imports: {missing or 'none'}")
+verdict("STILL PRESENT" if (broken or missing or not ships_config or (ROOT / "config").exists()) else "FIXED",
+        f"depth_estimator/config/*.yaml packaged: {ships_config}; resource loading {'works' if not broken else 'raises'}; "
+        f"top-level config duplicate: {(ROOT / 'config').exists()}; undeclared imports: {missing or 'none'}")

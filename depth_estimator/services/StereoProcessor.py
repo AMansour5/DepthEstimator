@@ -1,7 +1,8 @@
 import os
 import cv2
 import numpy as np
-from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
+from depth_estimator.exceptions.DifferentImageSizeError import DifferentImageSizeError
+from depth_estimator.utils.Configurator import Configurator
 
 class StereoProcessor:
 
@@ -13,7 +14,7 @@ class StereoProcessor:
     }
 
     def __init__(self, processor_cfg: dict):
-        self.calibration_path = processor_cfg["calibration_path"]
+        self.calibration_path = Configurator.resolvePath(processor_cfg["calibration_path"])
         self.process_scale = processor_cfg["process_scale"]
         self.matcher_params = processor_cfg["matcher_params"]
         self.matcher = None
@@ -144,5 +145,4 @@ class StereoProcessor:
         disparity = raw.astype(np.float32) / 16.0
         disparity[disparity < params["minDisparity"]] = -1.0   # SGBM's 'no match' is minDisparity - 1
         return disparity
-
 

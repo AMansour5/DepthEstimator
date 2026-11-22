@@ -7,7 +7,7 @@ Part D: what is left? Columns narrower than the true disparity are physically ou
 Part E: what the left-edge tint (DisparityVisualizer.highlightLeftInvalidBand) covers.
 """
 from common import *
-from src.services.DepthEstimator import DepthEstimator
+from depth_estimator.services.DepthEstimator import DepthEstimator
 
 cfg = load_stereo_processor_cfg()
 mp = cfg["matcher_params"]
@@ -62,7 +62,7 @@ for d in (10, 40):
           f"carry a disparity ({wrong:.0%} of those off by more than 2 px): they are extrapolated from the replicated padding")
 
 print("\nE) what the left-edge tint covers (DisparityVisualizer.highlightLeftInvalidBand), background d=10")
-from src.utils.DisparityVisualizer import DisparityVisualizer
+from depth_estimator.utils.DisparityVisualizer import DisparityVisualizer
 
 
 def tint_width(objects):

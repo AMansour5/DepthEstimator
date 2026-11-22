@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | High when present: unmatched pixels could look like confident, very distant surfaces |
 | **Status** | **Fixed**. `computeDisparity` clamps against the effective `minDisparity`, including overrides; `evidence/p03_min_disparity.py` prints `VERDICT FIXED` |
-| **Where** | `src/services/StereoProcessor.py:144` (clamp); `src/tuners/DisparityTuner.py:32,51,153` (slider overrides); `src/services/DepthEstimator.py:72` and `src/utils/DisparityVisualizer.py:13` (`> 0` means valid) |
+| **Where** | `depth_estimator/services/StereoProcessor.py:144` (clamp); `depth_estimator/tuners/DisparityTuner.py:32,51,153` (slider overrides); `depth_estimator/services/DepthEstimator.py:72` and `depth_estimator/utils/DisparityVisualizer.py:13` (`> 0` means valid) |
 
 ## What happened
 

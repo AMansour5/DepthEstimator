@@ -4,10 +4,10 @@ import json
 import math
 import time
 import numpy as np
-from src.utils.Configurator import Configurator
-from src.services.StereoCamera import StereoCamera
-from src.services.StereoProcessor import StereoProcessor
-from src.utils.DisparityVisualizer import DisparityVisualizer
+from depth_estimator.utils.Configurator import Configurator
+from depth_estimator.services.StereoCamera import StereoCamera
+from depth_estimator.services.StereoProcessor import StereoProcessor
+from depth_estimator.utils.DisparityVisualizer import DisparityVisualizer
 
 class DisparityTuner:
     # Nearest distance (mm) depth is needed at; only used to hint the numDisparities required.
@@ -19,7 +19,10 @@ class DisparityTuner:
         self.configurator = Configurator()
         self.stereo_processor = StereoProcessor(self.configurator.fetchData(self.configurator.STEREO_PROCESSOR))
         self.camera = StereoCamera(self.configurator.fetchData(self.configurator.STEREO_CAMERA))
-        self.results_dir = os.path.join(Configurator.getProjectRoot(), "disparity_tuning_results")
+        self.results_dir = os.environ.get(
+            "DEPTH_ESTIMATOR_RESULTS_DIR",
+            os.path.join(os.getcwd(), "disparity_tuning_results"),
+        )
         self.__probe = {"click": None, "disparity": None, "scale": 1.0, "panel": (0, 0)}
 
     def _nothing(self, _x):

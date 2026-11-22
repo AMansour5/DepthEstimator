@@ -1,5 +1,5 @@
 import numpy as np
-from src.services.DepthEstimator import DepthEstimator
+from depth_estimator.services.DepthEstimator import DepthEstimator
 
 # Synthetic setup: full-res 1920x1080, disparity computed at scale 0.5 (960x540).
 FOCAL = 1000.0      # px, full resolution

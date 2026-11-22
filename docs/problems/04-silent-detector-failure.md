@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | High (before the fix) |
 | **Status** | **Fixed** in `ffade17`. Re-checked: `evidence/p04_detector_failure.py` prints `VERDICT FIXED` |
-| **Where** | `src/services/ObjectDetector.py:6-15` (constructor raises `YoloModelNotFound`), `:17-41` (`detect` raises `DetectionError`); `src/exceptions/`; `src/services/Orchestrator.py:72` (no more `or []`) |
+| **Where** | `depth_estimator/services/ObjectDetector.py:6-15` (constructor raises `YoloModelNotFound`), `:17-41` (`detect` raises `DetectionError`); `depth_estimator/exceptions/`; `depth_estimator/services/Orchestrator.py:72` (no more `or []`) |
 
 ## Resolution
 
@@ -42,7 +42,7 @@ empty room: no boxes, no depths, no error. The only clue was an error line repea
 
 ## Remaining gap
 
-There is no regression test for the new behaviour (nothing in `src/tests/` references `DetectionError` or
+There is no regression test for the new behaviour (nothing in `depth_estimator/tests/` references `DetectionError` or
 `YoloModelNotFound`). A test with a stub `ultralytics` module, like `evidence/p04_detector_failure.py`, would pin it down
 without weights or a GPU.
 

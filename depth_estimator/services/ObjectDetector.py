@@ -1,10 +1,11 @@
 from ultralytics import YOLO
-from src.exceptions.DetectionError import DetectionError
-from src.exceptions.YoloModelNotFound import YoloModelNotFound
+from depth_estimator.exceptions.DetectionError import DetectionError
+from depth_estimator.exceptions.YoloModelNotFound import YoloModelNotFound
+from depth_estimator.utils.Configurator import Configurator
 
 class ObjectDetector:
     def __init__(self, detector_cfg: dict):
-        self.model_path = detector_cfg.get("model_path")
+        self.model_path = Configurator.resolvePath(detector_cfg.get("model_path"))
         self.conf_threshold = detector_cfg.get("conf_threshold", 0.5)
         self.classes = detector_cfg.get("classes", None)
         self.device = detector_cfg.get("device", None)

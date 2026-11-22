@@ -15,7 +15,7 @@ class DepthEstimator:
     def __init__(self, depth_cfg: dict, focal_length: float, baseline: float, scale: float = 1.0):
         """
         :param depth_cfg: roi_shrink, min_valid_frac, max_rel_spread
-                          (see config/depth_estimator.yaml).
+                          (see depth_estimator/config/depth_estimator.yaml).
         :param focal_length: focal length in pixels at FULL resolution
                              (StereoProcessor.getFocalLength()).
         :param baseline: distance between the two cameras, in the units of the

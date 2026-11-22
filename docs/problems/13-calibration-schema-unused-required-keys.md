@@ -4,13 +4,13 @@
 |---|---|
 | **Severity** | Low |
 | **Status** | **New**, reproduced (`evidence/p13_calibration_schema.py` prints `VERDICT STILL PRESENT`) |
-| **Where** | `src/services/StereoProcessor.py:55-71` (`__loadCalibration`; the two reads are at `:66-67`); introduced in `db60e9b` |
+| **Where** | `depth_estimator/services/StereoProcessor.py:55-71` (`__loadCalibration`; the two reads are at `:66-67`); introduced in `db60e9b` |
 
 ## Summary
 
 `db60e9b` added `square_size_mm` and `checkerboard` to what `StereoProcessor.__loadCalibration` reads. Both are read with
 `data[...]`, so both are **required**, but the values are only stored on the object (`self.square_size_mm`,
-`self.checkerboard_dims`) and never read again anywhere in `src/`.
+`self.checkerboard_dims`) and never read again anywhere in `depth_estimator/`.
 
 ## Evidence
 
@@ -23,9 +23,9 @@ B) does the stored unit change the baseline? (same translation T, different squa
    square_size_mm= 30.0: getBaseline() = 60.0
    square_size_mm=  3.0: getBaseline() = 60.0
 
-C) uses of the two attributes in src/ (outside tests)
-   src/services/StereoProcessor.py:66: self.square_size_mm = float(data["square_size_mm"])
-   src/services/StereoProcessor.py:67: self.checkerboard_dims = tuple(int(x) for x in data["checkerboard"])
+C) uses of the two attributes in depth_estimator/ (outside tests)
+   depth_estimator/services/StereoProcessor.py:66: self.square_size_mm = float(data["square_size_mm"])
+   depth_estimator/services/StereoProcessor.py:67: self.checkerboard_dims = tuple(int(x) for x in data["checkerboard"])
 ```
 
 The first run of the older evidence scripts against the current code failed in exactly this way: their synthetic calibration had the

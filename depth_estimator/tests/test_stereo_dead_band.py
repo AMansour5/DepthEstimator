@@ -2,9 +2,9 @@ import cv2
 import numpy as np
 import pytest
 
-from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
-from src.services.StereoProcessor import StereoProcessor
-from src.utils.DisparityVisualizer import DisparityVisualizer
+from depth_estimator.exceptions.DifferentImageSizeError import DifferentImageSizeError
+from depth_estimator.services.StereoProcessor import StereoProcessor
+from depth_estimator.utils.DisparityVisualizer import DisparityVisualizer
 
 
 def _processor(num_disparities=64):

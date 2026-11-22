@@ -1,14 +1,14 @@
 # Disparity tuning guide
 
 `DisparityTuner` shows the live camera with an adjustable SGBM matcher so you can pick settings by eye and write
-them to `config/stereo_processor.yaml`.
+them to `depth_estimator/config/stereo_processor.yaml`.
 
 ## Start it
 
 From the repository root:
 
 ```bash
-python -m src.tuners.DisparityTuner        # or, after pip install -e ., the tune-disparity command
+python -m depth_estimator.tuners.DisparityTuner        # or, after pip install -e ., the tune-disparity command
 ```
 
 At start-up it prints the focal length, the baseline, and the `numDisparities` needed to see objects at
@@ -27,7 +27,7 @@ current `numDisparities` and the value needed for `Z_MIN_MM`.
 |---|---|
 | Click on the rectified left image, the grey image, or the disparity panel | prints the distance at that point (median of a 5x5 patch) and draws a crosshair on those three views. Clicks on the top-right (rectified right) panel are ignored |
 | `s` | saves the rectified pair, the disparity image and a `params_*.json` into `disparity_tuning_results/` |
-| `d` | **writes the current values into `config/stereo_processor.yaml`** (see the cautions below) |
+| `d` | **writes the current values into `depth_estimator/config/stereo_processor.yaml`** (see the cautions below) |
 | `q` | quit |
 
 ## Sliders

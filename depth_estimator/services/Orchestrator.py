@@ -2,13 +2,13 @@ import sys
 import cv2
 import time
 import traceback
-from src.utils.Configurator import Configurator
+from depth_estimator.utils.Configurator import Configurator
 from concurrent.futures import ThreadPoolExecutor
-from src.services.StereoCamera import StereoCamera
-from src.services.ObjectDetector import ObjectDetector
-from src.services.DepthEstimator import DepthEstimator
-from src.services.StereoProcessor import StereoProcessor
-from src.utils.DisparityVisualizer import DisparityVisualizer
+from depth_estimator.services.StereoCamera import StereoCamera
+from depth_estimator.services.ObjectDetector import ObjectDetector
+from depth_estimator.services.DepthEstimator import DepthEstimator
+from depth_estimator.services.StereoProcessor import StereoProcessor
+from depth_estimator.utils.DisparityVisualizer import DisparityVisualizer
 
 class Orchestrator:
     """Runs the whole pipeline, one frame at a time (fork-join):
@@ -22,7 +22,7 @@ class Orchestrator:
     max(yolo, sgbm) instead of their sum when YOLO runs on a GPU and SGBM on
     the CPU.
 
-    Components are built from config/*.yaml by default; pass your own to
+    Components are built from depth_estimator/config/*.yaml by default; pass your own to
     override any of them (handy for tests).
     """
 

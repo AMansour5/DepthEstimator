@@ -1,8 +1,8 @@
 """Shared helpers for the evidence scripts.
 
 Every script here runs on SYNTHETIC data (no camera, no calibration file, no YOLO
-weights needed). They import the real classes from src/ wherever possible, and
-read the real values from config/*.yaml, so they exercise your actual code and
+weights needed). They import the real classes from depth_estimator/ wherever possible, and
+read the real values from depth_estimator/config/*.yaml, so they exercise your actual code and
 your actual settings.
 
 Run any script from anywhere:  python docs/problems/evidence/pXX_name.py
@@ -26,7 +26,7 @@ W, H = 960, 540
 
 
 def load_stereo_processor_cfg():
-    with open(ROOT / "config" / "stereo_processor.yaml") as f:
+    with open(ROOT / "depth_estimator" / "config" / "stereo_processor.yaml") as f:
         return yaml.safe_load(f)
 
 
@@ -85,7 +85,7 @@ def bgr(gray):
 
 def make_processor(matcher_params, scale=1.0):
     """A StereoProcessor with real matcher/disparity code but no calibration file (disparity only)."""
-    from src.services.StereoProcessor import StereoProcessor
+    from depth_estimator.services.StereoProcessor import StereoProcessor
     p = StereoProcessor.__new__(StereoProcessor)
     p.process_scale = scale
     p.matcher_params = dict(matcher_params)

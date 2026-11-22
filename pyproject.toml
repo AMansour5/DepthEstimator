@@ -22,21 +22,23 @@ dependencies = [
     "numpy>=1.26",
     "PyYAML>=6.0.1",
     "zope.interface>=6.1",
+    "ultralytics>=8.3.242"
 ]
 
 [project.optional-dependencies]
 dev = ["pytest"]
 
 [project.scripts]
-estimate-depth = "src.services.Orchestrator:main"
-tune-disparity = "src.tuners.DisparityTuner:main"
+estimate-depth = "depth_estimator.services.Orchestrator:main"
+tune-disparity = "depth_estimator.tuners.DisparityTuner:main"
 
 
 [project.urls]
 Homepage = "https://github.com/AMansour5/DepthEstimator"
 
-# The code imports itself as `src.*` (for example `from src.utils.Configurator import ...`),
-# so the package to ship is `src`. The tests are hardware scripts and are left out.
 [tool.setuptools.packages.find]
-include = ["src*"]
-exclude = ["src.tests*"]
+include = ["depth_estimator*"]
+exclude = ["depth_estimator.tests*"]
+
+[tool.setuptools.package-data]
+"depth_estimator.config" = ["*.yaml"]
