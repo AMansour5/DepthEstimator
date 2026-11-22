@@ -41,9 +41,10 @@ class StereoProcessor:
     def rectifyImages(self, left_img, right_img):
         if left_img is None or right_img is None:
             raise ValueError("Input images cannot be None.")
-        img_size = (left_img.shape[1], left_img.shape[0])
-        if self.calib_img_size != img_size:
-            raise DifferentImageSizeError(f"Input image size {img_size} does not match calibration image size {self.calib_img_size}.")
+        for name, img in (("left", left_img), ("right", right_img)):
+            if (img.shape[1], img.shape[0]) != self.calib_img_size:
+                raise DifferentImageSizeError(f"{name} image is {img.shape[1]}x{img.shape[0]}, "
+                                              f"calibration is {self.calib_img_size[0]}x{self.calib_img_size[1]}.")
         try:
             rectified_left = cv2.remap(left_img, self.map1x, self.map1y, cv2.INTER_LINEAR)
             rectified_right = cv2.remap(right_img, self.map2x, self.map2y, cv2.INTER_LINEAR)

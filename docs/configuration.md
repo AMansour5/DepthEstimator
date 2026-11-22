@@ -18,9 +18,9 @@ found regardless of the working directory (file paths *inside* the YAML are a di
 | `preview_width` | `640` | `640` | Only used by `StereoCamera.resize_for_preview` (the camera test) |
 | `frame_timeout` | `2.0` | *(not set)* | Seconds `getFrames()` waits for a frame newer than the last one; after that it returns `(None, None)` and the demo stops. Not in the YAML today, so the default applies |
 
-Each eye is `combined_width / 2` wide. It **must match** the calibration's `img_size`: a different left size raises
-`DifferentImageSizeError` ([P02](problems/02-frame-size-vs-calibration.md)). The camera is opened with MJPG at 30 FPS. If the
-camera reports another size than requested, `StereoCamera` prints a `WARNING` and keeps going.
+Each eye is `combined_width / 2` wide. It **must match** the calibration's `img_size`: a different size for either eye raises
+`DifferentImageSizeError` during rectification ([P02](problems/02-frame-size-vs-calibration.md)). The camera is opened with
+MJPG at 30 FPS. If it reports another combined size than requested, `StereoCamera.open()` raises `RuntimeError`.
 
 ## `stereo_processor.yaml`
 

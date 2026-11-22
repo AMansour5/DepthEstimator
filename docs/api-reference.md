@@ -13,8 +13,8 @@ project's values: set them in `config/stereo_camera.yaml` ([P02](problems/02-fra
 
 | Method | Returns / does |
 |---|---|
-| `open()` | Opens the device, requests the width/height, MJPG and 30 FPS, checks whether `CAP_PROP_BUFFERSIZE=1` was honoured (prints a `WARNING` if not), prints a `WARNING` if the camera reports another size, and **starts a daemon reader thread** that keeps only the newest frame. On failure it prints the error and leaves the capture as `None` (it does **not** raise); check `getCapture()` |
-| `getFrames()` | `(left, right)` halves of the **newest** combined frame (split at `width // 2`). It waits up to `frame_timeout` seconds for a frame newer than the last one returned, so no frame is returned twice. Returns `(None, None)` if the camera isn't open, the read failed, or the wait timed out ([P11](problems/11-possible-camera-latency.md)) |
+| `open()` | Opens the device, requests the width/height, MJPG and 30 FPS, checks whether `CAP_PROP_BUFFERSIZE=1` was honoured (prints a `WARNING` if not), and raises `RuntimeError` if opening/setup fails or the camera reports a different resolution. On success, **starts a daemon reader thread** that keeps only the newest frame ([P02](problems/02-frame-size-vs-calibration.md)) |
+| `getFrames()` | `(left, right)` halves of the **newest** combined frame (split at `width // 2`). It waits up to `frame_timeout` seconds for a frame newer than the last one returned, so no frame is returned twice. Returns `(None, None)` if a read failed or the wait timed out; raises `RuntimeError` if the camera isn't open ([P11](problems/11-possible-camera-latency.md)) |
 | `getCapture()` | the underlying `cv2.VideoCapture`, or `None` |
 | `release()` | stops the reader thread (waits up to 2 s), then releases the capture |
 | `resize_for_preview(img)` | `img` resized to `preview_width`, keeping the aspect ratio |
@@ -31,7 +31,7 @@ Public attributes: `process_scale`, `matcher_params`, `matcher`, the calibration
 
 | Method | Returns / does |
 |---|---|
-| `rectifyImages(left_img, right_img)` | `(rectified_left, rectified_right)`, each of size `calib_img_size`. Raises `ValueError` for `None` input, **`DifferentImageSizeError` if the left image's size differs from the calibration's** (the right image is not checked, [P02](problems/02-frame-size-vs-calibration.md)), and `RuntimeError` on failure |
+| `rectifyImages(left_img, right_img)` | `(rectified_left, rectified_right)`, each of size `calib_img_size`. Raises `ValueError` for `None` input, `DifferentImageSizeError` if **either** image's size differs from the calibration's ([P02](problems/02-frame-size-vs-calibration.md)), and `RuntimeError` on remapping failure |
 | `computeDisparity(left_img, right_img, overrides=None)` | `float32` disparity map in pixels at the process scale (input is **BGR rectified**; it converts to grey, downscales with `INTER_AREA`, pads both images on the left by `numDisparities`, matches, and crops the padding, so the map has the size of the downscaled left image with **no artificial dead band**, [P01](problems/01-sgbm-dead-band.md)). Unmatched pixels are `-1`, including when `minDisparity` is overridden. `overrides` may hold any `matcher_params` key and/or `"process_scale"` to use instead of the configured ones (the tuner uses this; see [P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
 | `buildMatcher(overrides=None)` | a `cv2.StereoSGBM` built from `matcher_params` with `overrides` taking precedence. `mode` is one of `SGBM`, `HH`, `SGBM_3WAY` (default if omitted), `HH4`; `P1 = 8*blockSize^2`, `P2 = 32*blockSize^2`. Raises `RuntimeError` on an invalid mode or missing key |
 | `getFocalLength()` | focal length in pixels at **full resolution**: `abs(Q[2,3])` |
@@ -54,7 +54,7 @@ nothing was found. **Any failure raises `DetectionError`**; it is never turned i
 |---|---|---|
 | `YoloModelNotFound` | `ObjectDetector.__init__` | the YOLO model could not be loaded (missing or unreadable file, wrong ultralytics version) |
 | `DetectionError` | `ObjectDetector.detect` | the model call failed (for example an unusable `device`, or out of memory) |
-| `DifferentImageSizeError` | `StereoProcessor.rectifyImages` | the left image's size differs from the calibration's |
+| `DifferentImageSizeError` | `StereoProcessor.rectifyImages` | either image's size differs from the calibration's |
 
 All three take a message and expose it as `.message`.
 

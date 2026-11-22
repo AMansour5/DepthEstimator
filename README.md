@@ -105,7 +105,6 @@ mitigated** and **2 are new**. The ones most likely to affect your numbers or yo
 | | Problem | Effect |
 |---|---|---|
 | [P08](docs/problems/08-implicit-units.md) | The unit of depth is assumed to be mm; `square_size_mm` is recorded but unused | a constant-factor error if the calibration used another unit |
-| [P02](docs/problems/02-frame-size-vs-calibration.md) | Only the left image's size is checked against the calibration | a wrong right image is rectified silently |
 | [P12](docs/problems/12-non-editable-install-broken.md) | `pip install .` ships no `config/`, and `ultralytics` is not declared | the console scripts only work from an editable install |
 | [P05](docs/problems/05-not-runnable-from-clean-clone.md) / [P13](docs/problems/13-calibration-schema-unused-required-keys.md) | Paths depend on the working directory; calibration files need two unused keys | a clean clone, or an older calibration, fails to start |
 
@@ -118,8 +117,9 @@ problem has a script in [docs/problems/evidence/](docs/problems/evidence/README.
 python -m pytest -q src/tests/test_depth_estimator.py src/tests/test_stereo_dead_band.py src/tests/test_configurator.py \
   src/tests/test_stereo_camera.py::test_slow_consumer_gets_latest_frame \
   src/tests/test_stereo_camera.py::test_frames_are_not_returned_twice \
-  src/tests/test_stereo_camera.py::test_release_stops_reader_thread        # 20 tests, no hardware needed
+  src/tests/test_stereo_camera.py::test_release_stops_reader_thread \
+  src/tests/test_stereo_camera.py::test_camera_rejects_negotiated_resolution_mismatch  # 22 tests, no hardware needed
 ```
 
-A plain `python -m pytest` collects 31 tests; 11 need a camera, a display, the model or the author's files. See
+A plain `python -m pytest` collects 33 tests; 11 need a camera, a display, the model or the author's files. See
 [docs/testing.md](docs/testing.md).

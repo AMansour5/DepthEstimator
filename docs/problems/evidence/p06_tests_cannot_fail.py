@@ -79,11 +79,12 @@ with tempfile.TemporaryDirectory() as tmp:
 
     cam = "src/tests/test_stereo_camera.py::test_"
     portable = ["src/tests/test_configurator.py", "src/tests/test_depth_estimator.py", "src/tests/test_stereo_dead_band.py",
-                cam + "slow_consumer_gets_latest_frame", cam + "frames_are_not_returned_twice", cam + "release_stops_reader_thread"]
+                cam + "slow_consumer_gets_latest_frame", cam + "frames_are_not_returned_twice",
+                cam + "release_stops_reader_thread", cam + "camera_rejects_negotiated_resolution_mismatch"]
     print("   no camera, display, model or calibration needed :", run(*portable))
     print("   test_stereo_processor.py (needs calibration+images):", run("src/tests/test_stereo_processor.py"))
 print("   (camera, GUI and model tests are not run here: they would open a window or block)")
 
 verdict("PARTLY FIXED",
-        "tests are named test_*.py, assertions are not swallowed, and 20 tests run on a clean clone; but the other 11 need "
-        "the author's calibration/images, a camera, a display or the model, and the P02/P03/P04 fixes have no regression test")
+        "tests are named test_*.py, assertions are not swallowed, and 22 tests run on a clean clone; but the other 11 need "
+        "the author's calibration/images, a camera, a display or the model, and the P03/P04 fixes have no regression test")

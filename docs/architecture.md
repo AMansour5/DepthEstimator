@@ -87,7 +87,7 @@ The leftmost `d` columns, where `d` is an object's disparity, lie outside the ri
 |---|---|---|
 | Combined camera frame | 3840 x 1080 | `combined_width x combined_height` |
 | Left / right halves | 1920 x 1080 each | split at `width // 2` |
-| Rectified images | `calib_img_size` from the calibration | **must equal the half-frame size**: a wrong left size raises `DifferentImageSizeError` ([P02](problems/02-frame-size-vs-calibration.md)) |
+| Rectified images | `calib_img_size` from the calibration | **must equal the half-frame size for both eyes**: a mismatch raises `DifferentImageSizeError` ([P02](problems/02-frame-size-vs-calibration.md)) |
 | YOLO boxes | same as rectified left (full resolution) | |
 | Disparity map | 960 x 540 at `process_scale: 0.5` | smaller, for speed |
 
@@ -121,7 +121,6 @@ The pipeline is **fail-fast**. `ObjectDetector` raises `YoloModelNotFound` / `De
 them and exits with status 1. A single failed detection therefore stops the demo; nothing is turned into "no objects"
 ([P04](problems/04-silent-detector-failure.md) is fixed).
 
-Still lenient: `StereoCamera.open` catches every exception, prints it and leaves the capture as `None`, and `getFrames()`
-returns `(None, None)` after `frame_timeout` seconds (the loop treats that as the end of the stream). See
-[P02](problems/02-frame-size-vs-calibration.md), [P11](problems/11-possible-camera-latency.md) and
+Still lenient: `getFrames()` returns `(None, None)` after a read failure or `frame_timeout` seconds (the loop treats that as
+the end of the stream). See [P11](problems/11-possible-camera-latency.md) and
 [P09](problems/09-configurator-error-handling-and-rewrites.md) for the remaining gaps.

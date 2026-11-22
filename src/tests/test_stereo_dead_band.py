@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
+import pytest
 
+from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
 from src.services.StereoProcessor import StereoProcessor
 from src.utils.DisparityVisualizer import DisparityVisualizer
 
@@ -71,6 +73,16 @@ def test_compute_disparity_pads_after_resize_using_override_range():
     assert captured["right_shape"] == (40, 82)
     assert disparity.shape == (40, 50)
     assert np.all(disparity == 12.0)
+
+
+def test_rectify_images_rejects_wrong_right_image_size():
+    processor = StereoProcessor.__new__(StereoProcessor)
+    processor.calib_img_size = (8, 4)
+    valid = np.zeros((4, 8, 3), dtype=np.uint8)
+    wrong_size = np.zeros((4, 6, 3), dtype=np.uint8)
+
+    with pytest.raises(DifferentImageSizeError, match="right image"):
+        processor.rectifyImages(valid, wrong_size)
 
 
 def test_left_invalid_band_highlight_uses_map_validity():

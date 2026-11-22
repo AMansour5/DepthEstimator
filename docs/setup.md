@@ -46,9 +46,9 @@ A calibration file from before `square_size_mm` and `checkerboard` were added fa
 
 Two things that are easy to get wrong:
 
-- **`img_size` must equal the size of each half of the camera frame** at runtime. A mismatched *left* image raises
-  `DifferentImageSizeError`; a mismatched right image is not checked
-  ([P02](problems/02-frame-size-vs-calibration.md)).
+- **`img_size` must equal the size of each half of the camera frame** at runtime. A mismatch in either eye raises
+  `DifferentImageSizeError`; if the camera reports a different resolution than requested, `StereoCamera.open()` raises
+  `RuntimeError` ([P02](problems/02-frame-size-vs-calibration.md)).
 - **Units.** Depth comes out in the unit you used for the checkerboard square size when calibrating. The code
   assumes **millimetres**, and `square_size_mm` does not convert anything. If you entered centimetres, every depth is wrong by
   a constant factor and nothing warns you ([P08](problems/08-implicit-units.md)).
@@ -97,9 +97,9 @@ exits with status 1 instead of showing a window without boxes ([P04](problems/04
 
 ## First-run checklist
 
-1. The console prints no `WARNING: camera did not accept the requested resolution...` line. If it does, fix
-   `stereo_camera.yaml` first (a size that differs from the calibration will stop the first frame with
-   `DifferentImageSizeError`, [P02](problems/02-frame-size-vs-calibration.md)).
+1. Make sure `combined_width` / `combined_height` in `stereo_camera.yaml` match the size the camera reports, and that each
+   half matches the calibration's `img_size`. A reported/requested mismatch fails at `open()`; a calibration mismatch fails
+   at rectification ([P02](problems/02-frame-size-vs-calibration.md)).
 2. The tinted strip on the left of the disparity panel is narrow. A wide one means that part of the scene has no matches
    (texture, occlusion); the strip is no longer caused by `numDisparities` ([P01](problems/01-sgbm-dead-band.md)).
 3. Boxes appear. A missing model or a failing detector now stops the program with an error

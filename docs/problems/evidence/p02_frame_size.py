@@ -1,13 +1,13 @@
-"""P02: the frame size is checked against the calibration, but only for the LEFT image; the camera only warns.
+"""P02: reject frames whose size does not match the calibration or the requested camera mode.
 
 Part A: StereoProcessor.rectifyImages with the real class and a synthetic 1920x1080 calibration.
 Part B: StereoCamera when the device negotiates another resolution (fake capture, no hardware).
 """
 import tempfile
 from common import *
-from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
 from src.services.StereoCamera import StereoCamera
 from src.services.StereoProcessor import StereoProcessor
+from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
 
 with tempfile.TemporaryDirectory() as tmp:
     calib = f"{tmp}/stereo_calib.npz"
@@ -53,18 +53,23 @@ class FakeCapture:
 cv2.VideoCapture = lambda *_a, **_k: FakeCapture()
 cam = StereoCamera({"combined_width": 3840, "combined_height": 1080})
 print("   (console output of open():)")
-cam.open()
-opened = cam.getCapture() is not None
-print(f"   camera still opened after the size mismatch: {opened}")
+camera_rejected = False
+try:
+    cam.open()
+except RuntimeError as e:
+    camera_rejected = True
+    print(f"   open() rejected the size mismatch: {e}")
+else:
+    print("   open() unexpectedly accepted the size mismatch")
 cam.release()
 
 right_unchecked = outcome["left 1920x1080, RIGHT 640x480"] == "no error"
 left_checked = outcome["both 640x480 (StereoCamera's default 1280x480 combined)"] == "raised"
-if left_checked and not right_unchecked and not opened:
+if left_checked and not right_unchecked and camera_rejected:
     verdict("FIXED", "both images and the camera are checked")
 elif left_checked:
     verdict("PARTLY FIXED",
-            "a wrong LEFT size now raises DifferentImageSizeError; a wrong RIGHT size still passes unchecked, "
-            "and StereoCamera only prints a warning and keeps running")
+            "a wrong LEFT size now raises DifferentImageSizeError, but a wrong RIGHT size passes unchecked or the camera "
+            "accepts a mismatched negotiated size")
 else:
     verdict("STILL PRESENT", "mismatched frames are still rectified silently")

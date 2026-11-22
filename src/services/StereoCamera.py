@@ -2,6 +2,7 @@ import cv2
 import threading
 from zope.interface import implementer
 from src.interfaces.ICamera import ICamera
+from src.exceptions.DifferentImageSizeError import DifferentImageSizeError
 
 @implementer(ICamera)
 class StereoCamera:
@@ -28,8 +29,7 @@ class StereoCamera:
             self.__setupCamera()
             self.__startReader()
         except Exception as e:
-            print(f"Error opening camera: {e}")
-            self.__capture = None
+            raise RuntimeError(f"Failed to open stereo camera: {e}")
 
     def __startReader(self):
         """Continuously drain the camera so only the newest frame is kept, whatever the backend queues."""
@@ -69,11 +69,11 @@ class StereoCamera:
                 actual_h = int(self.__capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 print(f"Requested {self.combined_width}x{self.combined_height}, camera reports {actual_w}x{actual_h}")
                 if actual_w != self.combined_width or actual_h != self.combined_height:
-                    print("WARNING: camera did not accept the requested resolution. "
+                    raise DifferentImageSizeError("WARNING: camera did not accept the requested resolution. "
                           "Update combined_width/combined_height to match what it reports, "
                           "or the left/right split below will be wrong.")
         except Exception as e:
-            print(f"Error setting up camera: {e}")
+            raise RuntimeError(f"Error setting up camera: {e}")
 
     def getFrames(self):
         """Return the newest frame from the stereo camera split into left and right images.
@@ -93,8 +93,7 @@ class StereoCamera:
                 self.__last_returned_id = self.__latest_id
             return self.__split_frame(frame)
         else:
-            print("Camera is not opened.")
-            return None, None
+            raise RuntimeError("Camera is not opened.")
 
     def __split_frame(self, frame):
         """Split a combined side-by-side stereo frame into (left, right) halves."""

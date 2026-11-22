@@ -2,6 +2,7 @@ import threading
 import time
 import cv2
 import numpy as np
+import pytest
 from src.utils.Configurator import Configurator
 from src.services.StereoCamera import StereoCamera
 
@@ -63,15 +64,17 @@ class _FakeCapture:
     def __init__(self, period=0.005):
         self.period = period
         self.count = 0
+        self.properties = {}
 
     def isOpened(self):
         return True
 
-    def set(self, *_args):
+    def set(self, prop, value):
+        self.properties[prop] = value
         return True
 
-    def get(self, *_args):
-        return 1
+    def get(self, prop):
+        return int(self.properties.get(prop, 1))
 
     def read(self):
         time.sleep(self.period)
@@ -87,6 +90,26 @@ def _open_fake_camera(monkeypatch):
     camera = StereoCamera({"combined_width": 8, "combined_height": 4})
     camera.open()
     return camera
+
+
+def test_camera_rejects_negotiated_resolution_mismatch(monkeypatch):
+    class _MismatchedCapture(_FakeCapture):
+        def get(self, prop):
+            if prop == cv2.CAP_PROP_FRAME_WIDTH:
+                return 6
+            if prop == cv2.CAP_PROP_FRAME_HEIGHT:
+                return 4
+            return super().get(prop)
+
+    capture = _MismatchedCapture()
+    monkeypatch.setattr(cv2, "VideoCapture", lambda *_a, **_k: capture)
+    camera = StereoCamera({"combined_width": 8, "combined_height": 4})
+
+    try:
+        with pytest.raises(RuntimeError, match="did not accept the requested resolution"):
+            camera.open()
+    finally:
+        camera.release()
 
 
 def test_slow_consumer_gets_latest_frame(monkeypatch):

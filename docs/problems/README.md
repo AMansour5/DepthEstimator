@@ -7,7 +7,7 @@ The first version of this list described commit `90dda91`. It was audited again 
 problem was re-checked against the current code, and two new ones were found (P12, P13). P03 was reopened in that audit and
 has since been fixed for both configured and overridden `minDisparity` values.
 
-**Summary of the 13: 5 fixed (P01, P03, P04, P07, P10), 5 partly fixed (P02, P05, P06, P08, P09), 1 mitigated (P11) and 2 new
+**Summary of the 13: 6 fixed (P01, P02, P03, P04, P07, P10), 4 partly fixed (P05, P06, P08, P09), 1 mitigated (P11) and 2 new
 (P12, P13).** The original list had 11 entries.
 
 ## How sure am I? (the *Status* of each problem)
@@ -35,10 +35,9 @@ you whether a change moved anything.
 
 | # | Problem | Severity | Status |
 |---|---|---|---|
-| [P02](02-frame-size-vs-calibration.md) | The right image's size is never checked, and the camera only warns about a negotiated size | Medium | Partly fixed |
 | [P08](08-implicit-units.md) | The unit of depth is recorded (`square_size_mm`) but never applied | Medium | Partly fixed |
 | [P05](05-not-runnable-from-clean-clone.md) | Artifact paths depend on the working directory; calibration and weights are not in the repository | Medium | Partly fixed |
-| [P06](06-tests-cannot-fail.md) | 20 of 31 tests run on a clean clone; the other 11 need hardware or this machine; P02/P03/P04/P08 have no pytest regression tests | Medium | Partly fixed |
+| [P06](06-tests-cannot-fail.md) | 22 of 33 tests can run without hardware; the other 11 need hardware or this machine; P03/P04/P08 have no pytest regression tests | Medium | Partly fixed |
 | [P12](12-non-editable-install-broken.md) | `pip install .` ships no `config/` and doesn't declare `ultralytics` | Medium | **New** (reproduced) |
 | [P09](09-configurator-error-handling-and-rewrites.md) | `setConfig` drops comments, re-sorts keys, and a failed write empties the file | Low | Partly fixed |
 | [P13](13-calibration-schema-unused-required-keys.md) | Two required calibration keys nothing uses; old calibration files no longer load | Low | **New** (reproduced) |
@@ -49,6 +48,7 @@ you whether a change moved anything.
 | # | Problem | Severity | Fixed in |
 |---|---|---|---|
 | [P01](01-sgbm-dead-band.md) | SGBM left the leftmost `numDisparities` columns without a depth (a third of the frame at 320) | High | `c39cf63` (pad, match, crop) |
+| [P02](02-frame-size-vs-calibration.md) | A wrong-sized eye image or negotiated camera mode could be rectified silently | High | Check both rectification inputs and reject negotiated camera dimensions that differ from the request |
 | [P03](03-invalid-disparity-assumes-min-disparity-zero.md) | SGBM's positive "no match" sentinel could become a valid depth when `minDisparity` was overridden | High | Clamp against the effective matcher parameters (configured and override paths verified) |
 | [P04](04-silent-detector-failure.md) | A broken detector was indistinguishable from an empty scene | High | `ffade17` (it raises) |
 | [P07](07-hardcoded-cuda-device.md) | `device: CUDA` broke detection on machines without a GPU | Medium | `db60e9b` (`device: null`) |
@@ -58,14 +58,14 @@ you whether a change moved anything.
 
 - [P01](01-sgbm-dead-band.md) used to create unmatched pixels; [P03](03-invalid-disparity-assumes-min-disparity-zero.md) now
   ensures they remain invalid for both configured and overridden `minDisparity` values.
-- [P04](04-silent-detector-failure.md) and [P07](07-hardcoded-cuda-device.md), which hid most failures, are fixed. What can
-  still go wrong without an error is **scale**: a wrong unit ([P08](08-implicit-units.md)) or a wrong frame (right image, [P02](02-frame-size-vs-calibration.md))
-  produces plausible depths that are off by a constant factor.
+- [P02](02-frame-size-vs-calibration.md), [P04](04-silent-detector-failure.md) and [P07](07-hardcoded-cuda-device.md), which
+  could silently accept wrong inputs or hide failures, are fixed. What can still go wrong without an error is **scale**: a
+  wrong unit ([P08](08-implicit-units.md)) produces plausible depths that are off by a constant factor.
 - [P05](05-not-runnable-from-clean-clone.md), [P06](06-tests-cannot-fail.md), [P12](12-non-editable-install-broken.md) and
   [P13](13-calibration-schema-unused-required-keys.md) are about running the project anywhere but the author's machine.
 
-**Suggested order for what remains:** P02 (right-image check plus tests), P12 and P05 (declare
-`ultralytics`, resolve paths against the project root), then P08/P13 together (decide what `square_size_mm` means), then P06.
+**Suggested order for what remains:** P12 and P05 (declare `ultralytics`, resolve paths against the project root), then
+P08/P13 together (decide what `square_size_mm` means), then P06.
 
 ## Investigated and not recorded as problems
 

@@ -29,8 +29,8 @@ twice, release stops the thread) and run on any machine.
   returns `(None, None)`, and `Orchestrator.run` treats that as end of stream (`No frame from the camera, stopping.`).
 - **`release()` joins the reader for up to 2 s and then releases the capture.** If the backend's `read()` is blocked longer than
   that, the capture is released under a thread that is still inside `read()`.
-- `open()` still catches every exception and leaves the capture as `None`; `Orchestrator.run` raises `RuntimeError` in that
-  case, but a direct caller must check `getCapture()` ([P02](02-frame-size-vs-calibration.md)).
+- `open()` now raises `RuntimeError` when the camera cannot be opened or configured, including when its reported resolution
+  differs from the request ([P02](02-frame-size-vs-calibration.md)).
 
 ## How to check on your hardware
 
