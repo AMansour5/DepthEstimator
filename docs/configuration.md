@@ -36,7 +36,7 @@ camera reports another size than requested, `StereoCamera` prints a `WARNING` an
 |---|---|---|---|
 | `blockSize` | `9` | odd; 3-11 is typical | Matching window. Larger = smoother, fewer holes, blurrier edges. `P1 = 8*blockSize^2` and `P2 = 32*blockSize^2` are derived from it |
 | `numDisparities` | `272` | positive **multiple of 16** | Search range in pixels (of the downscaled image). Sets the nearest measurable distance. It no longer widens an unmeasurable left band ([P01](problems/01-sgbm-dead-band.md): the images are padded by this amount), but it still sets the **cost**: SGBM processes an image `numDisparities` columns wider, and a larger range means more chances of a wrong match. Use the smallest value that covers your nearest object |
-| `minDisparity` | `0` | keep at `0` | Start of the search range. Unmatched pixels are normalised to `-1` for the configured value; the tuner's slider (an override) is not normalised, so a value above 1 produces wrong depths while tuning ([P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
+| `minDisparity` | `0` | usually keep at `0` | Start of the search range. Unmatched pixels are normalised to `-1` for both configured and overridden values; a nonzero value shifts the search range and can exclude near objects ([P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
 | `uniquenessRatio` | `10` | about 5-15 | How much better the best match must be than the runner-up. Higher = fewer wrong matches, more holes |
 | `speckleWindowSize` | `100` | 0 disables; about 50-200 | Smallest blob size kept; smaller blobs are removed as noise |
 | `speckleRange` | `2` | 1-2 is typical | Disparity variation allowed within one blob |

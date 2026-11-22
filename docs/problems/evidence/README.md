@@ -15,7 +15,7 @@ for f in docs/problems/evidence/p*.py; do python3 "$f" | tail -2; done     # all
 |---|---|---|---|
 | `p01_dead_band.py` | [P01](../01-sgbm-dead-band.md) | the raw SGBM dead band, then `computeDisparity` with padding; residual extrapolated edge | FIXED |
 | `p02_frame_size.py` | [P02](../02-frame-size-vs-calibration.md) | wrong LEFT size raises; wrong RIGHT size passes; the camera only warns | PARTLY FIXED |
-| `p03_min_disparity.py` | [P03](../03-invalid-disparity-assumes-min-disparity-zero.md) | configured `minDisparity` is clean; the tuner's override path still yields "reliable" wrong depths | PARTLY FIXED |
+| `p03_min_disparity.py` | [P03](../03-invalid-disparity-assumes-min-disparity-zero.md) | configured and overridden `minDisparity` values leave no positive SGBM sentinel pixels | FIXED |
 | `p04_detector_failure.py` | [P04](../04-silent-detector-failure.md) | load and runtime detector failures now raise | FIXED |
 | `p05_not_runnable.py` | [P05](../05-not-runnable-from-clean-clone.md) | what git tracks, cwd-relative paths, declared dependencies | PARTLY FIXED |
 | `p06_tests_cannot_fail.py` | [P06](../06-tests-cannot-fail.md) | what pytest collects, which tests need hardware or this machine, which problems have a regression test, a clean-clone run | PARTLY FIXED |

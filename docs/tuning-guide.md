@@ -34,7 +34,7 @@ current `numDisparities` and the value needed for `Z_MIN_MM`.
 
 | Slider | Range / mapping | Notes |
 |---|---|---|
-| `minDisparity` | 0-10 | **Leave at 0.** At 2 or more, matcher failures are drawn and probed as real, very distant surfaces while you tune, because the tuner's value is an override that is not clamped ([P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
+| `minDisparity` | 0-10 | Usually leave at 0. Nonzero values shift the search range and can exclude near objects; unmatched pixels remain invalid for slider overrides ([P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)) |
 | `process scale x10` | 0-10, minimum effective scale 0.2 | Main speed control. 5 = half resolution |
 | `numDisp x16` | value x 16, minimum 16, capped to the scaled image width minus 32 | Start from the value the overlay says you need |
 | `blockSize idx` | `2*idx + 3`, minimum 3 (3-23, odd) | Matching window |
@@ -65,8 +65,8 @@ current `numDisparities` and the value needed for `Z_MIN_MM`.
 - `d` rewrites the whole YAML file: **comments are dropped and keys are re-sorted**, and a failed write leaves the file empty
   ([P09](problems/09-configurator-error-handling-and-rewrites.md)). Commit the file first so you can diff.
 - The tuner calls `StereoProcessor.computeDisparity` with your slider values as overrides, so it matches the runtime
-  (padding, `INTER_AREA` downscale and all, [P10](problems/10-duplicated-disparity-code.md)). The one exception is
-  `minDisparity` above (P03). The click probe is a quick 5x5-patch median, not the per-box estimate the demo shows; check the
-  final result in the orchestrator.
+  (padding, `INTER_AREA` downscale, and invalid-disparity handling, [P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)
+  and [P10](problems/10-duplicated-disparity-code.md)). The click probe is a quick 5x5-patch median, not the per-box
+  estimate the demo shows; check the final result in the orchestrator.
 - The tuner builds its `StereoProcessor` from `stereo_processor.yaml` and now raises a clear error if that file is missing or
   malformed ([P09](problems/09-configurator-error-handling-and-rewrites.md)).

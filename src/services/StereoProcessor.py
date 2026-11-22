@@ -141,7 +141,7 @@ class StereoProcessor:
         gray_r = cv2.copyMakeBorder(gray_r, 0, 0, pad, 0, cv2.BORDER_REPLICATE)
         raw = matcher.compute(gray_l, gray_r)[:, pad:]
         disparity = raw.astype(np.float32) / 16.0
-        disparity[disparity < self.matcher_params["minDisparity"]] = -1.0   # SGBM's 'no match' is minDisparity - 1
+        disparity[disparity < params["minDisparity"]] = -1.0   # SGBM's 'no match' is minDisparity - 1
         return disparity
 
 

@@ -8,8 +8,8 @@ distance (`Z = f * B / d`). A live window shows the boxes, their distances and t
 
 > **Status: work in progress.** The pipeline runs end to end and the worst silent failures (a broken detector, the
 > unmeasurable left third of the frame, a wrong frame size) are fixed. Some problems can still give a plausible but wrong
-> distance **without any error**: the unit of depth is assumed to be millimetres, and the tuner's `minDisparity` slider is
-> unreliable above 1. Read [Known problems](#known-problems) before trusting the numbers on your own setup.
+> distance **without any error**: the unit of depth is assumed to be millimetres, for example. Read
+> [Known problems](#known-problems) before trusting the numbers on your own setup.
 
 ## How it works
 
@@ -97,13 +97,13 @@ use the [tuning guide](docs/tuning-guide.md) (`python -m src.tuners.DisparityTun
 
 ## Known problems
 
-All problems were checked against the current code (audit at commit `c39cf63`). **4 are fixed** (P01 the unmeasurable left
-band, P04 silent detector failure, P07 hard-coded CUDA, P10 duplicated disparity code), **6 are partly fixed**, **1 is
+All problems were checked against the current code (audit at commit `c39cf63`, with P03 re-verified since). **5 are fixed**
+(P01 the unmeasurable left band, P03 invalid disparity sentinels, P04 silent detector failure, P07 hard-coded CUDA, P10
+duplicated disparity code), **5 are partly fixed**, **1 is
 mitigated** and **2 are new**. The ones most likely to affect your numbers or your first run:
 
 | | Problem | Effect |
 |---|---|---|
-| [P03](docs/problems/03-invalid-disparity-assumes-min-disparity-zero.md) | The tuner's `minDisparity` slider (above 1) is not clamped | "no match" pixels drawn and probed as a reliable, far-away depth while tuning |
 | [P08](docs/problems/08-implicit-units.md) | The unit of depth is assumed to be mm; `square_size_mm` is recorded but unused | a constant-factor error if the calibration used another unit |
 | [P02](docs/problems/02-frame-size-vs-calibration.md) | Only the left image's size is checked against the calibration | a wrong right image is rectified silently |
 | [P12](docs/problems/12-non-editable-install-broken.md) | `pip install .` ships no `config/`, and `ultralytics` is not declared | the console scripts only work from an editable install |

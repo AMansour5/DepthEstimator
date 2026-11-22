@@ -64,7 +64,7 @@ passed to its constructor, so it can be tested with a synthetic disparity map
 
 **Disparity map** (from `StereoProcessor.computeDisparity`): `float32`, shape `(H * process_scale, W * process_scale)`,
 values in pixels **of the downscaled image**. Pixels SGBM could not match are `-1` (SGBM writes `minDisparity - 1` and the
-processor clamps it; the clamp does not cover `overrides`, see [P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)).
+processor clamps it using the effective matcher parameters, including `overrides` ([P03](problems/03-invalid-disparity-assumes-min-disparity-zero.md)).
 The leftmost `d` columns, where `d` is an object's disparity, lie outside the right camera's view and hold extrapolated values.
 
 **Depth result** (from `DepthEstimator`, one per detection, or `None`)

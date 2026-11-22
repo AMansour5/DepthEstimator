@@ -29,9 +29,11 @@ below. The reasons, and a proposal to mark them so that `pytest` skips them by d
 | `test_object_detector.py` | 2 | the YOLO weights, a sample image at an absolute path, and a window (`test_detect_objects` waits for `q` if anything is detected) | the model loads and detection returns something (`is not None`) |
 | `test_disparity_tuner.py` | 1 | a camera and a display | launches the interactive tuner; it has no assertion |
 
-So the real regression value is in the first four rows. **Not covered by any test**: the P02 size check (left or right), the P03
-sentinel clamp (for the configured value or an override), the P04 exceptions, the P08 unit, `Orchestrator.processFrame`, and the
-failure paths of `Configurator` ([P06](problems/06-tests-cannot-fail.md)). `src/tests` is excluded from the installed package.
+So the real regression value is in the first four rows. **Not covered by a pytest regression test**: the P02 size check (left
+or right), the P03 sentinel clamp (for the configured value or an override), the P04 exceptions, the P08 unit,
+`Orchestrator.processFrame`, and the failure paths of `Configurator` ([P06](problems/06-tests-cannot-fail.md)). P03 is
+demonstrated by [`p03_min_disparity.py`](problems/evidence/p03_min_disparity.py), which exercises real SGBM on synthetic
+stereo pairs and verifies both configured and overridden values. `src/tests` is excluded from the installed package.
 
 ## What `test_depth_estimator.py` covers
 

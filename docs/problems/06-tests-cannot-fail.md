@@ -36,8 +36,9 @@ The original complaint was that the tests could not fail and pytest found 2 of t
 2. **One test asserts this machine's configuration.** `test_load_camera_config` expects `camera_index == "/dev/video2"` and
    3840x1080; with any other valid config it raises `AssertionError` (it can fail, but for the wrong reason).
 3. **No pytest configuration or markers**, so nothing says which tests are hardware tests or lets CI skip them.
-4. **No regression test for several fixes**: the P02 size check (left or right), the P03 sentinel (configured or override),
-   the P04 exceptions, the P08 unit. This is how P03 got "fixed" for the config path and still broke for the override path.
+4. **No pytest regression test for several fixes**: the P02 size check (left or right), the P03 sentinel (configured or
+   override), the P04 exceptions, the P08 unit. P03 does have a standalone synthetic evidence script, but it is not part of
+   the pytest suite. This is how P03 got "fixed" for the config path and still broke for the override path.
 
 ## Suggested fixes
 
