@@ -38,7 +38,7 @@ you whether a change moved anything.
 | [P08](08-implicit-units.md) | New files mark `T` in mm; legacy or mislabeled calibrations may still have the wrong scale | Medium | Partly fixed |
 | [P06](06-tests-cannot-fail.md) | 27 of 38 tests can run without hardware; the other 11 need hardware or this machine; P03/P04 lack pytest regression tests | Medium | Partly fixed |
 | [P09](09-configurator-error-handling-and-rewrites.md) | `setConfig` drops comments, re-sorts keys, and a failed write empties the file | Low | Partly fixed |
-| [P11](11-possible-camera-latency.md) | Camera frames may be stale if the backend queues them | Low | Mitigated (reader thread) |
+| [P11](11-possible-camera-latency.md) | Backend queues can make frames stale; reader thread reduces queue lag but cannot guarantee frame age | Low | Mitigated (fake tests and available-camera probe; other backends unverified) |
 
 ## Resolved
 

@@ -13,8 +13,8 @@ project's values: set them in `depth_estimator/config/stereo_camera.yaml` ([P02]
 
 | Method | Returns / does |
 |---|---|
-| `open()` | Opens the device, requests the width/height, MJPG and 30 FPS, checks whether `CAP_PROP_BUFFERSIZE=1` was honoured (prints a `WARNING` if not), and raises `RuntimeError` if opening/setup fails or the camera reports a different resolution. On success, **starts a daemon reader thread** that keeps only the newest frame ([P02](problems/02-frame-size-vs-calibration.md)) |
-| `getFrames()` | `(left, right)` halves of the **newest** combined frame (split at `width // 2`). It waits up to `frame_timeout` seconds for a frame newer than the last one returned, so no frame is returned twice. Returns `(None, None)` if a read failed or the wait timed out; raises `RuntimeError` if the camera isn't open ([P11](problems/11-possible-camera-latency.md)) |
+| `open()` | Opens the device, requests the width/height, MJPG and 30 FPS, checks whether `CAP_PROP_BUFFERSIZE=1` was honoured (prints a `WARNING` if not), and raises `RuntimeError` if opening/setup fails or the camera reports a different resolution. On success, **starts a daemon reader thread** that retains the latest frame it has read ([P02](problems/02-frame-size-vs-calibration.md)) |
+| `getFrames()` | `(left, right)` halves of the latest frame obtained by the background reader (split at `width // 2`). The reader reduces backend-queue lag but does not guarantee sensor-to-application frame age. The method waits up to `frame_timeout` seconds for a frame newer than the last returned, so no frame is returned twice. Returns `(None, None)` if a read failed or the wait timed out; raises `RuntimeError` if the camera isn't open ([P11](problems/11-possible-camera-latency.md)) |
 | `getCapture()` | the underlying `cv2.VideoCapture`, or `None` |
 | `release()` | stops the reader thread (waits up to 2 s), then releases the capture |
 | `resize_for_preview(img)` | `img` resized to `preview_width`, keeping the aspect ratio |
