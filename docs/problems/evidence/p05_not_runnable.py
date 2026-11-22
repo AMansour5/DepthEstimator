@@ -1,4 +1,4 @@
-"""P05: running the project from a clean clone. What is fixed, and what still depends on the working directory.
+"""P05: verify that a clean-clone package layout resolves paths independently of cwd.
 
 Part A: what git actually tracks for the two git-ignored artifacts.
 Part B: relative calibration_path / model_path resolve against the CURRENT WORKING DIRECTORY.

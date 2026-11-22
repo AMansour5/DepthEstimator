@@ -74,7 +74,7 @@ python -m depth_estimator.tuners.DisparityTuner       # interactive SGBM tuning 
 python -m pytest -q                       # the tests (see testing.md: some need a camera, a display or the author's files)
 ```
 
-The two console commands exist after `pip install -e .` and also need the repository root as the working directory.
+The two console commands exist after `pip install -e .` and may be run outside the repository root.
 
 ## What you should see
 

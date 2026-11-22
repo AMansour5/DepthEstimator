@@ -17,7 +17,7 @@ for f in docs/problems/evidence/p*.py; do python3 "$f" | tail -2; done     # all
 | `p02_frame_size.py` | [P02](../02-frame-size-vs-calibration.md) | both eye-size mismatches raise; camera rejects a different negotiated resolution | FIXED |
 | `p03_min_disparity.py` | [P03](../03-invalid-disparity-assumes-min-disparity-zero.md) | configured and overridden `minDisparity` values leave no positive SGBM sentinel pixels | FIXED |
 | `p04_detector_failure.py` | [P04](../04-silent-detector-failure.md) | load and runtime detector failures now raise | FIXED |
-| `p05_not_runnable.py` | [P05](../05-not-runnable-from-clean-clone.md) | what git tracks, cwd-relative paths, declared dependencies | PARTLY FIXED |
+| `p05_not_runnable.py` | [P05](../05-not-runnable-from-clean-clone.md) | package-relative paths work outside the checkout; dependencies and artifact folders are complete | FIXED |
 | `p06_tests_cannot_fail.py` | [P06](../06-tests-cannot-fail.md) | what pytest collects, which tests need hardware or this machine, which problems have a regression test, a clean-clone run | PARTLY FIXED |
 | `p09_configurator.py` | [P09](../09-configurator-error-handling-and-rewrites.md) | `fetchData` raises; `setConfig` still drops comments and a failed write empties the file | PARTLY FIXED |
 | `p10_interpolation.py` | [P10](../10-duplicated-disparity-code.md) | source scan for duplicated disparity code; the old `INTER_AREA` vs `INTER_LINEAR` measurement | FIXED |

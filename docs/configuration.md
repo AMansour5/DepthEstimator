@@ -1,8 +1,8 @@
 # Configuration reference
 
-All configuration lives in `depth_estimator/config/*.yaml`. `Configurator` locates the folder from the project root, so it is
-found regardless of the working directory (file paths *inside* the YAML are a different matter; see
-[P05](problems/05-not-runnable-from-clean-clone.md)).
+All configuration lives in `depth_estimator/config/*.yaml`. `Configurator` loads packaged resources or mutable per-user
+configuration regardless of the working directory. Relative artifact paths are resolved against the package location
+([P05](problems/05-not-runnable-from-clean-clone.md)).
 
 > The YAML files themselves can't carry these explanations for long: `Configurator.setConfig` (used by the tuner's
 > `d` key) rewrites a file and drops its comments ([P09](problems/09-configurator-error-handling-and-rewrites.md)).
@@ -26,7 +26,7 @@ MJPG at 30 FPS. If it reports another combined size than requested, `StereoCamer
 
 | Key | Meaning |
 |---|---|
-| `calibration_path` | Path to the calibration `.npz` (a relative path resolves against the **working directory**, so start from the repository root, [P05](problems/05-not-runnable-from-clean-clone.md)). The file needs the keys listed in [`setup.md`](setup.md), including `square_size_mm` and `checkerboard` |
+| `calibration_path` | Path to the calibration `.npz` (relative paths resolve against the `depth_estimator` package, [P05](problems/05-not-runnable-from-clean-clone.md)). The file needs the keys listed in [`setup.md`](setup.md), including `square_size_mm` and `checkerboard` |
 | `process_scale` | Scale applied to the rectified images **before** SGBM. `0.5` means SGBM runs on 960x540. Smaller is faster and less precise; `1.0` disables downscaling |
 | `matcher_params` | The SGBM settings below |
 
@@ -50,7 +50,7 @@ The tuner's `d` key writes `process_scale` and the SGBM values back into this fi
 
 | Key | Current | Meaning |
 |---|---|---|
-| `model_path` | `depth_estimator/models/yolov8n.pt` | YOLO weights (relative to the working directory; a bad path raises `YoloModelNotFound` at start-up) |
+| `model_path` | `depth_estimator/models/yolov8n.pt` | YOLO weights (relative paths resolve against the `depth_estimator` package; a missing or bad path raises `YoloModelNotFound` at start-up) |
 | `conf_threshold` | `0.5` | Minimum confidence to keep a detection |
 | `classes` | `null` | List of COCO class ids to keep (e.g. `[0, 39, 41]` = person, bottle, cup); `null` = all |
 | `device` | `null` | Where YOLO runs. **`null` lets ultralytics choose (GPU if available, else CPU).** An explicit value such as `0`, `cuda:0` or `cpu` forces it; one the machine can't provide raises `DetectionError` on the first frame ([P07](problems/07-hardcoded-cuda-device.md)) |

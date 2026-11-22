@@ -96,13 +96,13 @@ use the [tuning guide](docs/tuning-guide.md) (`python -m depth_estimator.tuners.
 
 ## Known problems
 
-All problems were checked against the current code. **7 are fixed** (P01, P02, P03, P04, P07, P10, P12), **3 are partly
-fixed**, **1 is mitigated**, and **1 is new**. The ones most likely to affect your numbers or your first run:
+All problems were checked against the current code. **8 are fixed** (P01, P02, P03, P04, P05, P07, P10, P12), **3 are partly
+fixed** (P06, P08, P09), **1 is mitigated**, and **1 is new**. The ones most likely to affect your numbers or your first run:
 
 | | Problem | Effect |
 |---|---|---|
 | [P08](docs/problems/08-implicit-units.md) | The unit of depth is assumed to be mm; `square_size_mm` is recorded but unused | a constant-factor error if the calibration used another unit |
-| [P05](docs/problems/05-not-runnable-from-clean-clone.md) / [P13](docs/problems/13-calibration-schema-unused-required-keys.md) | Calibration/model artifacts are not tracked; calibration files need two unused keys | a clean clone, or an older calibration, fails to start |
+| [P13](docs/problems/13-calibration-schema-unused-required-keys.md) | Calibration files need two unused keys | an older calibration, or a calibration with an unexpected layout, fails to load |
 
 The full index, with severity and verification status, is [docs/problems/README.md](docs/problems/README.md). Each reproducible
 problem has a script in [docs/problems/evidence/](docs/problems/evidence/README.md) that prints a `VERDICT` line.

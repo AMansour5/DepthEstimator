@@ -1,41 +1,45 @@
-# P05: A fresh clone still needs ignored artifacts
+# P05: The package can run outside the checkout and from a clean clone layout
 
 | | |
 |---|---|
 | **Severity** | Medium |
-| **Status** | **Partly fixed**. `evidence/p05_not_runnable.py` prints `VERDICT PARTLY FIXED` |
-| **Where** | `.gitignore` (`*.pt`, `*.npz`, `*.png`, `*.jpg`, `*.json`); `depth_estimator/config/stereo_processor.yaml:1` (`calibration_path`); `depth_estimator/config/object_detector.yaml:1` (`model_path`); `depth_estimator/utils/Configurator.py:resolvePath`; `pyproject.toml` |
+| **Status** | **Fixed**. `evidence/p05_not_runnable.py` prints `VERDICT FIXED` |
+| **Where** | `pyproject.toml`; `depth_estimator/utils/Configurator.py:resolvePath`; `depth_estimator/config/stereo_processor.yaml`; `depth_estimator/config/object_detector.yaml`; `.gitignore`; `depth_estimator/matrices/.gitkeep`; `depth_estimator/models/.gitkeep` |
 
-## Resolved
+## Original problem
 
-- **Dependencies are declared** (`e645de6`): `pyproject.toml` lists `opencv-python`, `numpy`, `PyYAML`, `zope.interface`, a `dev`
-  extra with `pytest`, and two console scripts (`estimate-depth`, `tune-disparity`). The repository has no `requirements.txt`,
-  by choice. Use `pip install -e .` (see [`docs/setup.md`](../setup.md)); an editable install works from any directory.
-- **Relative artifact paths are cwd-independent.** `Configurator.resolvePath()` joins package-relative `calibration_path` and
-  `model_path` values to the `depth_estimator` package directory.
-- **The artifact folders exist on a clean clone** (`a7ec39a`): `depth_estimator/matrices/.gitkeep`, `depth_estimator/models/.gitkeep`,
-  `disparity_tuning_results/.gitkeep` are tracked.
-- **The calibration `.npz` schema is documented** in [`docs/setup.md`](../setup.md).
+The application depended on the process working directory for relative `calibration_path` and `model_path` values. A launch
+from the IDE, a service, or any directory other than the repository root could leave the package unable to locate its
+calibration or YOLO weights.
 
-## Still open
+The original checkout also lacked a clear clean-clone layout for generated artifact folders and did not have complete
+dependency declarations.
 
-1. **Relative artifact paths are now resolved in one place.** `Configurator.resolvePath()` joins package-relative
-   `calibration_path` and `model_path` values to the `depth_estimator` package directory, so `StereoProcessor` and
-   `ObjectDetector` no longer depend on the process working directory. Launching from another directory now finds the package
-   location correctly.
-2. **The calibration and model files are still git-ignored and there is no tooling in the repository to create the
-   calibration.** A clean clone fails with `RuntimeError: No calibration file at ...` until you supply it. The expected keys
-   changed recently and two are now required but unused ([P13](13-calibration-schema-unused-required-keys.md)).
-3. **`.gitignore` also ignores `*.png`, `*.jpg` and `*.json`.** The sample images the tests read
-   (`depth_estimator/images/left/000.png`, `porsche.png`, ...) are therefore not in the repository ([P06](06-tests-cannot-fail.md)), and any
-   image or JSON you add to `docs/` will be ignored too. Prefer Mermaid/ASCII diagrams, or add `!docs/**` exceptions.
+## Fixed behavior
 
-## Suggested fix for what remains
+- The package was renamed to `depth_estimator`, and configuration now lives inside the package.
+- `Configurator.resolvePath()` turns package-relative calibration and model paths into absolute paths based on the installed
+  package location.
+- `StereoProcessor` and `ObjectDetector` use the resolved paths, so neither depends on the caller's working directory.
+- `pyproject.toml` declares all runtime imports, including `ultralytics`, and defines both console entry points.
+- `depth_estimator/matrices/.gitkeep` and `depth_estimator/models/.gitkeep` preserve the clean-clone artifact directories.
 
-Link to (or commit) the calibration script and keep calibration/model data ignored. Document exact setup for downloading or
-generating the artifacts, and consider adding synthetic calibration/model tests that do not depend on the author's files.
+## External setup remains intentional
 
-## How to verify
+The git-ignored `.npz` stereo calibration and `.pt` YOLO weights are hardware-specific or downloaded artifacts, so they are
+not expected in the repository. A fresh clone must follow [`docs/setup.md`](../setup.md) to provide those two files. Their
+absence produces an explicit startup error, not an ambiguous cwd-dependent failure.
 
-Clone to a new folder, follow [`docs/setup.md`](../setup.md) only, and run `estimate-depth` from a different working directory.
-`evidence/p05_not_runnable.py` should end with `VERDICT FIXED`.
+## Verification
+
+`python3 docs/problems/evidence/p05_not_runnable.py` verifies:
+
+- the package-relative artifact paths are resolved in different working directories;
+- artifact folders and dependencies are present in a clean clone layout;
+- all third-party imports are declared.
+
+It ends with:
+
+```
+VERDICT FIXED: paths are cwd-independent and dependencies are complete
+```
