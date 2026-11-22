@@ -109,9 +109,10 @@ worker      :                              \--- SGBM --------------/
 - It is a **fork-join per frame**, not free-running threads. That is deliberate: free-running stages would pair
   boxes from frame N with a disparity map from frame N-3 and produce plausible but wrong depths.
 - `future.result()` re-raises exceptions from the worker, so SGBM errors surface in the main thread.
-- A third thread lives in `StereoCamera`: a daemon reader that continuously calls `read()` and keeps only the newest frame,
-  so a slow pipeline never works on a queued, stale frame. `getFrames()` waits for a frame newer than the last one it
-  returned ([P11](problems/11-possible-camera-latency.md)).
+- A third thread lives in `StereoCamera`: a daemon reader that continuously calls `read()` and retains the most recent
+  frame it has obtained. This can reduce backend-queue lag when the reader keeps pace, but it does not guarantee frame
+  age or prevent stale frames on every backend. `getFrames()` waits for a frame newer than the last one it returned
+  ([P11](problems/11-possible-camera-latency.md)).
 
 ## Error-handling model
 

@@ -83,6 +83,7 @@ pip install numpy opencv-python pyyaml zope.interface pytest
 python3 docs/problems/evidence/p01_dead_band.py        # likewise p02 ... p13 (there is no p07, p08 or p11)
 ```
 
-All scripts use **synthetic stereo pairs and a synthetic calibration file**, so they run without a camera, a real calibration,
-or YOLO weights (`p12` needs Python 3.11+ for `tomllib`). Numbers that depend on your camera (focal length, baseline) are marked
-*illustrative* wherever they appear. See [`evidence/README.md`](evidence/README.md).
+Evidence scripts use synthetic inputs where runtime behavior needs them; other scripts inspect tests, source, or packaging.
+They do not require a camera, real calibration, or YOLO weights. The P12 script needs Python 3.11+ for `tomllib`. Numbers
+that depend on your camera (focal length, baseline) are marked *illustrative* wherever they appear. See
+[`evidence/README.md`](evidence/README.md).

@@ -28,7 +28,7 @@ skips them by default, are in
 | `test_stereo_calibration.py` | 4 | nothing | legacy and marked calibration schemas, optional metadata, unsupported unit rejection, and no implicit rescaling from `square_size_mm` ([P08](problems/08-implicit-units.md), [P13](problems/13-calibration-schema-unused-required-keys.md)) |
 | `test_configurator.py` | 4 | nothing (`test_load_camera_config` asserts **this machine's** camera config) | `setConfig` creates a missing file, merges untouched keys, and resolves absolute/package-relative artifact paths |
 | `test_stereo_camera.py` | 7 | 3 need a camera and a display (`test_camera_open`, `test_frame_capture`, `test_view_feed`, which loops until `q`); 4 use a fake capture | a reported resolution mismatch is rejected; a slow consumer gets the **latest** frame, no frame is returned twice, and `release()` stops the reader thread ([P02](problems/02-frame-size-vs-calibration.md), [P11](problems/11-possible-camera-latency.md)) |
-| `test_stereo_processor.py` | 5 | the real calibration and sample images at absolute `/home/mansour/...` paths | construction, rectification, focal length, baseline and disparity, each only asserting `is not None` |
+| `test_stereo_processor.py` | 5 | the real calibration and sample images (calibration from config; image paths are repo-relative) | construction, rectification, focal length, baseline and disparity, each only asserting `is not None` |
 | `test_object_detector.py` | 2 | the YOLO weights, a sample image at an absolute path, and a window (`test_detect_objects` waits for `q` if anything is detected) | the model loads and detection returns something (`is not None`) |
 | `test_disparity_tuner.py` | 1 | a camera and a display | launches the interactive tuner; it has no assertion |
 

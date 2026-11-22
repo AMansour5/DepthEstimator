@@ -1,9 +1,8 @@
-"""Shared helpers for the evidence scripts.
+"""Shared helpers for evidence scripts.
 
-Every script here runs on SYNTHETIC data (no camera, no calibration file, no YOLO
-weights needed). They import the real classes from depth_estimator/ wherever possible, and
-read the real values from depth_estimator/config/*.yaml, so they exercise your actual code and
-your actual settings.
+Scripts use synthetic inputs where runtime behavior needs them. They import the real classes
+from depth_estimator/ wherever possible and read values from depth_estimator/config/*.yaml.
+Some scripts instead inspect tests, source, or packaging; see each script for its requirements.
 
 Run any script from anywhere:  python docs/problems/evidence/pXX_name.py
 Needs: numpy, opencv-python, pyyaml, zope.interface  (p06 also needs pytest, p12 needs Python 3.11+ for tomllib)

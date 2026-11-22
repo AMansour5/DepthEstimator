@@ -4,7 +4,7 @@
 |---|---|
 | **Severity** | Low |
 | **Status** | **Mitigated**, not fully fixed. Fake-capture regressions pass, and the available `/dev/video2` device showed queued reads that the reader-thread path drained at a supported resolution. Frame age was not directly measured, so freshness on other cameras/backends remains unverified. |
-| **Where** | `depth_estimator/services/StereoCamera.py:34-54` (`__startReader`, `__readLoop`), `:56-76` (`__setupCamera`), `:78-97` (`getFrames`), `:108-115` (`release`); `depth_estimator/tests/test_stereo_camera.py:92-116` |
+| **Where** | `depth_estimator/services/StereoCamera.py:34-54` (`__startReader`, `__readLoop`), `:56-76` (`__setupCamera`), `:78-97` (`getFrames`), `:107-114` (`release`); `depth_estimator/tests/test_stereo_camera.py:95-142` |
 
 ## Summary
 

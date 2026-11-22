@@ -4,16 +4,18 @@
 |---|---|
 | **Severity** | Medium |
 | **Status** | **Partly fixed**. `evidence/p06_tests_cannot_fail.py` prints `VERDICT PARTLY FIXED` |
-| **Where** | `depth_estimator/tests/*.py`: `test_object_detector.py:16` and `test_stereo_processor.py:16-17,43-44` (absolute `/home/mansour/...` paths); `test_stereo_camera.py:29-50` (`test_view_feed`), `test_disparity_tuner.py` and `test_object_detector.py:11-40` (GUI loops); `test_configurator.py:4-9` (asserts this machine's camera config); `pyproject.toml` (no pytest configuration) |
+| **Where** | `depth_estimator/tests/*.py`: `test_object_detector.py:16` (absolute `/home/mansour/...` path); `test_stereo_processor.py:16-17,43-44` (repo-relative sample-image paths and the configured calibration file); `test_stereo_camera.py:29-50` (`test_view_feed`), `test_disparity_tuner.py` and `test_object_detector.py:11-40` (GUI loops); `test_configurator.py:4-9` (asserts this machine's camera config); `pyproject.toml` (no pytest configuration) |
 
 ## Resolved (`87b2af6`, then `d403a39` and `c39cf63`)
 
 The original complaint was that the tests could not fail and pytest found 2 of them. That is fixed:
 
 - Files are named `test_*.py` with `def test_...` functions, so `python -m pytest` collects **38 tests in 8 files**.
-- The `try/except` that swallowed assertion failures is gone (the scan finds no `except` in any test file).
-- The depth math has 10 synthetic-disparity tests (`test_depth_estimator.py`); P01 has 4 tests and P02 has 1
-  (`test_stereo_dead_band.py`); the camera has 4 fake-capture tests (`test_stereo_camera.py`); and `Configurator.setConfig` has 2.
+- The `try/except` that swallowed assertion failures is gone (the scan finds no `except Exception` or
+  `except AssertionError` in any test file; narrower exception handling remains where appropriate).
+- The depth math has 10 synthetic-disparity tests (`test_depth_estimator.py`); P01 has 2 tests, P02 has 1, and
+  disparity highlighting has 2 (`test_stereo_dead_band.py`); the camera has 4 fake-capture tests
+  (`test_stereo_camera.py`); and `Configurator.setConfig` has 2.
 
 ## Still open
 
@@ -28,7 +30,7 @@ The original complaint was that the tests could not fail and pytest found 2 of t
    | Group | Tests | Why it can't run elsewhere |
    |---|---|---|
    | portable | 27 | `test_depth_estimator`, `test_stereo_dead_band`, `test_configurator`, `test_stereo_calibration`, 4 fake-capture camera tests |
-   | needs the author's files | 5 | `test_stereo_processor.py`: `depth_estimator/matrices/stereo_calib.npz` and `depth_estimator/images/*.png` are git-ignored and referenced by `/home/mansour/...` |
+   | needs the author's files | 5 | `test_stereo_processor.py`: `depth_estimator/matrices/stereo_calib.npz` and `depth_estimator/images/*.png` are git-ignored; the calibration path comes from config and sample images use repo-relative paths |
    | needs model + image + window | 2 | `test_object_detector.py`: weights, absolute path, and `test_detect_objects` blocks on `cv2.imshow` until `q` |
    | needs the camera / a display | 4 | `test_camera_open`, `test_frame_capture`, `test_view_feed` (loops until `q`), `test_run` (launches the tuner) |
 
@@ -46,8 +48,9 @@ The original complaint was that the tests could not fail and pytest found 2 of t
 
 1. Register a marker (`[tool.pytest.ini_options] markers = ["hardware: needs a camera, display, model or the author's files"]`)
    and deselect it by default with `addopts = "-m 'not hardware'"`; run them with `pytest -m hardware`.
-2. Replace `/home/mansour/...` with paths relative to the test file, and build a synthetic calibration with
-   `tmp_path` (the writer in `evidence/common.py` is a ready-made example) so `StereoProcessor` is testable anywhere.
+2. Replace the absolute image path in `test_object_detector.py` with a test-relative path, and build a synthetic
+   calibration with `tmp_path` (the writer in `evidence/common.py` is a ready-made example) so
+   `StereoProcessor` is testable anywhere.
 3. Make `test_load_camera_config` check the keys' types and plausibility, not this machine's values.
 4. Add the missing regression tests listed above.
 

@@ -1,7 +1,8 @@
 # Evidence scripts
 
-Each script checks one documented problem against **the current code**, on **synthetic data**, using your real classes
-from `depth_estimator/` and your real values from `depth_estimator/config/*.yaml`. No camera, real calibration file or YOLO weights are needed.
+Each script checks one documented problem against **the current code**, using the real classes from `depth_estimator/`
+and values from `depth_estimator/config/*.yaml`. Scripts use synthetic inputs where runtime behavior needs them; others
+inspect tests, source, or packaging. See each script for its specific requirements.
 Every script ends with a line `VERDICT FIXED | PARTLY FIXED | STILL PRESENT`, so you can re-run them after a change and see
 what moved.
 
@@ -22,15 +23,15 @@ for f in docs/problems/evidence/p*.py; do python3 "$f" | tail -2; done     # all
 | `p09_configurator.py` | [P09](../09-configurator-error-handling-and-rewrites.md) | `fetchData` raises; `setConfig` still drops comments and a failed write empties the file | PARTLY FIXED |
 | `p10_interpolation.py` | [P10](../10-duplicated-disparity-code.md) | source scan for duplicated disparity code; the old `INTER_AREA` vs `INTER_LINEAR` measurement | FIXED |
 | `p12_packaging.py` | [P12](../12-non-editable-install-broken.md) | the renamed package ships all YAML config resources and declares third-party imports | FIXED |
-| `p13_calibration_schema.py` | [P13](../13-calibration-schema-unused-required-keys.md) | old calibration files are rejected; the stored unit is ignored | STILL PRESENT |
+| `p13_calibration_schema.py` | [P13](../13-calibration-schema-unused-required-keys.md) | legacy metadata is optional; new files declare T in mm; unsupported units are rejected | FIXED |
 
 P07 (needs ultralytics/PyTorch), P08 (needs your calibration; partly covered by `p13`) and P11 (needs your camera) have no
 dedicated script; their files say how to check. P11's reader-thread behaviour is covered by tests in
 `depth_estimator/tests/test_stereo_camera.py`.
 
-`common.py` holds the shared helpers: a synthetic stereo-scene generator with known disparities, an SGBM builder that mirrors
+`common.py` holds shared helpers: a synthetic stereo-scene generator with known disparities, an SGBM builder that mirrors
 `StereoProcessor`, `make_processor` (a real `StereoProcessor` without a calibration file), a synthetic calibration writer
-(with the now-required `square_size_mm` and `checkerboard` keys) and `verdict()`.
+that declares `translation_unit="mm"` and includes optional `square_size_mm` and `checkerboard` metadata, and `verdict()`.
 
 **Illustrative numbers.** Where a script uses a focal length or baseline (`1000 px`, `60 mm`), they are made-up values, not your
 camera's.

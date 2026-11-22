@@ -80,6 +80,7 @@ with tempfile.TemporaryDirectory() as tmp:
 
     cam = "depth_estimator/tests/test_stereo_camera.py::test_"
     portable = ["depth_estimator/tests/test_configurator.py", "depth_estimator/tests/test_depth_estimator.py", "depth_estimator/tests/test_stereo_dead_band.py",
+                "depth_estimator/tests/test_stereo_calibration.py",
                 cam + "slow_consumer_gets_latest_frame", cam + "frames_are_not_returned_twice",
                 cam + "release_stops_reader_thread", cam + "camera_rejects_negotiated_resolution_mismatch"]
     print("   no camera, display, model or calibration needed :", run(*portable))

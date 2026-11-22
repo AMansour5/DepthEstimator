@@ -21,9 +21,9 @@ so `null` selects the GPU when there is one and the CPU otherwise. And since [P0
 explicit device that cannot be used (for example `0` or `CUDA` on a laptop) now raises `DetectionError` on the first frame
 instead of producing a window that never shows a box.
 
-## Source-read analysis (unchanged, still not executed without a GPU)
+## Source-read analysis (checked on the installed Ultralytics version; CPU-only failure path not executed)
 
-From `parse_device` / `select_device` in `ultralytics/utils/torch_utils.py` (read on version 8.4.191):
+From `select_device` in `ultralytics/utils/torch_utils.py` (read on version 8.3.242, the installed version):
 
 - The string is lower-cased and `"cuda"` is mapped to GPU `"0"`, so `CUDA` **works on a machine with a working NVIDIA GPU**.
   The capitalisation was never the problem.
